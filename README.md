@@ -1,176 +1,176 @@
 # Silent Support
 
-A safe place for people who are too emotionally exhausted to explain how they feel.
+A private emotional space that helps you express feelings when you don’t have the energy to explain them.
 
-## Vision
+## 🧠 Vision
 
-Silent Support helps people communicate emotional needs without requiring long conversations.
+Silent Support is built for moments when emotions feel heavy, but words feel impossible.
 
-Sometimes people don't want advice.
-Sometimes people don't have the energy to explain.
-Sometimes they just want someone to know.
+Instead of typing long messages or talking to someone, you simply tap how you feel — and receive calm, grounding support instantly.
 
-Silent Support allows users to send simple emotional signals to trusted people with a single tap.
+No conversations.
+No social pressure.
+No explanations required.
 
-Examples:
+Just emotional release → gentle response → quiet recovery.
 
-- 🫂 Need a Hug
-- 🌧 Bad Day
-- 😔 Feeling Lonely
-- 💭 Overthinking
+---
+
+## 💡 Core Idea
+
+One tap is enough.
+
+You select how you feel:
+
+- 😔 Bad Day
+- 🌧 Feeling Low
 - 😴 Emotionally Exhausted
-- ❤️ Thinking of You
+- 💭 Overthinking
+- 🫂 Need Comfort
 - 🌱 Need Encouragement
-- 🤝 Stay With Me
+- ❤️ Lonely
+- ⚡ Anxiety Spike
 
-The goal is not to replace conversations.
+The app responds with:
 
-The goal is to make emotional support easier to reach.
-
----
-
-## Problem
-
-Many people struggle to communicate when:
-
-- Feeling anxious
-- Feeling overwhelmed
-- Feeling lonely
-- Feeling emotionally exhausted
-- Experiencing stress
-- Having a bad day
-
-Typing a message can feel impossible.
-
-Silent Support removes that barrier.
+- A calm, validating message
+- Optional breathing or grounding exercise
+- A safe space to pause
 
 ---
 
-## Target Users
+## 🎯 Problem
 
-### Couples
+When people feel overwhelmed, they often cannot:
 
-People who want emotional connection without pressure.
+- Explain what’s wrong
+- Talk to others
+- Form full sentences
+- Ask for help
 
-### Long Distance Relationships
-
-A simple way to feel present for each other.
-
-### Best Friends
-
-Support without needing the perfect words.
-
-### Introverts
-
-Express feelings with less social pressure.
-
-### People With Anxiety
-
-Communicate needs quickly and safely.
+Silent Support removes the need for explanation.
 
 ---
 
-## Core Features
+## 🧘 Target Users
 
-### Emotional Signals
-
-One-tap emotional communication.
-
-### Silent Hug
-
-Send presence without requiring conversation.
-
-### Comfort Mode
-
-Provides:
-
-- Gentle reminders
-- Breathing exercises
-- Positive reflections
-- Journaling prompts
-
-### AI Companion
-
-Available when trusted contacts are unavailable.
-
-Provides:
-
-- Emotional support
-- Reflection prompts
-- Encouragement
-- Check-ins
-
-### Mood History
-
-Track emotional patterns over time.
-
-### Relationship Spaces
-
-Private emotional spaces for:
-
-- Couples
-- Friends
-- Family
+- People with anxiety
+- Emotionally overwhelmed users
+- Introverts
+- People dealing with loneliness
+- Anyone experiencing emotional burnout
+- Users who struggle to express feelings
 
 ---
 
-## Technology Stack
+## ✨ Core Features (MVP)
+
+### 1. Emotional Tap System
+
+One-tap emotion selection.
+
+No typing required.
+
+---
+
+### 2. AI Emotional Companion
+
+A calm system that responds with:
+
+- Validation
+- Presence
+- Emotional grounding
+
+Not a therapist.
+Not a coach.
+Not a chatbot.
+
+Just a steady presence.
+
+---
+
+### 3. Comfort Mode
+
+A dedicated calm screen with:
+
+- Breathing animation
+- Soft interaction
+- Optional silence mode
+- Gentle reset experience
+
+---
+
+### 4. Emotion History
+
+Tracks emotional patterns:
+
+- What you felt
+- When you felt it
+- Light reflection over time
+
+---
+
+## 🧠 AI Philosophy
+
+The AI must always:
+
+- Validate before anything else
+- Stay short and calm
+- Avoid advice unless asked
+- Avoid overwhelming the user
+- Never judge or analyze deeply
+
+Example responses:
+
+- “That sounds heavy. I’m here with you.”
+- “You don’t need to explain this right now.”
+- “Let’s slow down for a moment.”
+
+---
+
+## 🛠 Tech Stack
 
 ### Mobile
-
-- React Native
-- Expo
+- React Native (Expo)
 - TypeScript
 
 ### Backend
-
-- Supabase
-- PostgreSQL
-- Supabase Auth
-- Supabase Realtime
-
-### Notifications
-
-- Expo Push Notifications
+- Supabase (Auth + Database + RLS)
 
 ### AI
-
 - OpenAI API
-- Emotional Support Assistant
 
 ---
 
-## Product Principles
+## 🧱 Current Scope
 
-Silent Support should always feel:
+This is a SOLO MODE MVP.
 
-- Safe
-- Calm
-- Warm
-- Private
-- Non-judgmental
-- Minimal
+There are:
 
-Users should never feel pressured to explain themselves.
+❌ No friends
+❌ No messaging
+❌ No social features
+❌ No notifications (for MVP)
+❌ No gamification
 
----
+Only:
 
-## Current Status
-
-Phase 1 MVP
-
-Planned Features:
-
-- Authentication
-- User Profiles
-- Friend Connections
-- Emotional Signals
-- Silent Hug
-- Push Notifications
-- Signal Inbox
+✔ Emotional expression
+✔ AI grounding response
+✔ Private emotional tracking
 
 ---
 
-## Long-Term Goal
+## 🎯 Product Goal
 
-Become the easiest way for people to ask for emotional support when they don't have the energy to explain why.
+To become the easiest way for someone to say:
+
+> “I don’t feel okay”  
+without needing to explain why.
+
+---
+
+## 🚀 Status
+
+Early MVP Phase — building core emotional system.
