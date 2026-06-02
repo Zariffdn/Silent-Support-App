@@ -42,14 +42,12 @@ export default function ComfortScreen() {
         onPress={() => setSilent((s) => !s)}
         accessibilityLabel={silent ? 'Show guidance' : 'Stay in silence'}
       >
-        {/* Phase cue — hidden in silence */}
-        {!silent && (
-          <Animated.Text style={[styles.cue, { opacity: cue }]}>{phase.label}</Animated.Text>
-        )}
+        {/* Phase cue: fades out in silence but keeps its space, so the circle stays put. */}
+        <Animated.Text style={[styles.cue, { opacity: silent ? 0 : cue }]}>{phase.label}</Animated.Text>
 
         <BreathingCircle scale={scale} dim={silent} />
 
-        {/* Grounding line — hidden in silence */}
+        {/* Grounding line: the container always holds its space; only the line fades away. */}
         <View style={styles.grounding}>{!silent && <GroundingLine />}</View>
       </Pressable>
 
