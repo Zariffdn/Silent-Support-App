@@ -13,6 +13,10 @@ import type { ComfortAudio } from '../../lib/preferences';
 
 const OVERLAP_MS = 800; // how early the next copy starts before the current ends
 const TICK_MS = 80;
+// Start the next copy a little past the very beginning, so the overlapping
+// region is *different* ambience (not the same start/end content doubling up,
+// which caused a loudness bump).
+const LOOP_SKIP_S = 0.3;
 
 let players: AudioPlayer[] = [];
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -41,7 +45,7 @@ function tick() {
       fading = true;
       fadeMs = 0;
       try {
-        next.seekTo(0);
+        next.seekTo(LOOP_SKIP_S);
         next.volume = 0;
         next.play();
       } catch {
@@ -51,19 +55,20 @@ function tick() {
     return;
   }
 
-  // Crossfade in progress: ramp current down, next up.
+  // Crossfade in progress: equal-power ramp (constant perceived loudness).
   fadeMs += TICK_MS;
   const t = clamp(fadeMs / OVERLAP_MS);
+  const g = (Math.PI / 2) * t;
   try {
-    cur.volume = target * (1 - t);
-    next.volume = target * t;
+    cur.volume = target * Math.cos(g);
+    next.volume = target * Math.sin(g);
   } catch {
     // ignore
   }
   if (t >= 1) {
     try {
       cur.pause();
-      cur.seekTo(0);
+      cur.seekTo(LOOP_SKIP_S);
       cur.volume = 0;
     } catch {
       // ignore
