@@ -4,12 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '../src/theme';
 import { getEmotion, pickCurated } from '../src/emotions/catalog';
-import { insertEmotionLog, updateLogResponse } from '../src/lib/logEmotion';
 import { appendLocalLog } from '../src/lib/localHistory';
+import { pushCheckIn } from '../src/lib/sync';
+import { useSession } from '../src/features/auth/SessionProvider';
 import { fetchAiResponse } from '../src/lib/getSupportResponse';
 
 export default function ResponseScreen() {
   const router = useRouter();
+  const { userId } = useSession();
   const { emotion: emotionId } = useLocalSearchParams<{ emotion: string }>();
   const emotion = getEmotion(emotionId);
 
@@ -27,20 +29,18 @@ export default function ResponseScreen() {
     if (!emotion) return;
     let mounted = true;
 
-    const curated = curatedRef.current ?? '';
-
     // Gentle fade-in of the curated response.
     Animated.timing(fade, { toValue: 1, duration: 700, useNativeDriver: true }).start();
 
     (async () => {
-      // Log the emotion FIRST (with the curated text already on screen), then
-      // ask the AI in the background.
-      const logId = await insertEmotionLog(emotion.id, curated, 'curated');
-      // Mirror the check-in into private on-device history (powers the history
-      // screen without ever reading emotional data back over the network).
-      appendLocalLog({ id: logId, emotion: emotion.id, createdAt: new Date().toISOString() });
-      const ai = await fetchAiResponse(emotion);
+      // Record the check-in privately on-device — the local store is always the
+      // source of truth the user sees.
+      const log = await appendLocalLog(userId, emotion.id);
+      // If signed in, also back it up to the account (append-only, best-effort).
+      if (userId) void pushCheckIn(userId, log);
 
+      // Ask the AI in the background; swap in only if it returns quickly.
+      const ai = await fetchAiResponse(emotion);
       if (ai && mounted) {
         // Soft crossfade swap — the AI quietly deepens the response, no jolt.
         Animated.timing(fade, { toValue: 0, duration: 400, useNativeDriver: true }).start(
@@ -51,8 +51,6 @@ export default function ResponseScreen() {
             }
           },
         );
-        // Upgrade the logged row to what the user ended up seeing.
-        updateLogResponse(logId, ai, 'ai');
       }
     })();
 

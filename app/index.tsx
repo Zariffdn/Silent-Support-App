@@ -67,6 +67,16 @@ export default function SelectionScreen() {
         >
           <Text style={styles.lookBackText}>Look back</Text>
         </Pressable>
+
+        <View style={styles.footer}>
+          <Pressable onPress={() => router.push('/help')} hitSlop={10} accessibilityLabel="Find help">
+            <Text style={styles.footerLink}>Help</Text>
+          </Pressable>
+          <Text style={styles.footerDot}>·</Text>
+          <Pressable onPress={() => router.push('/privacy')} hitSlop={10} accessibilityLabel="Privacy">
+            <Text style={styles.footerLink}>Privacy</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -117,5 +127,21 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.size.body,
     fontFamily: theme.typography.family.sans,
     letterSpacing: 0.5,
+  },
+  footer: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  footerLink: {
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.caption,
+    fontFamily: theme.typography.family.sans,
+  },
+  footerDot: {
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.caption,
   },
 });

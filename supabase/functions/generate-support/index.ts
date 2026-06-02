@@ -61,6 +61,21 @@ const EMOTION_GUIDANCE: Record<string, string> = {
   'anxiety-spike': 'They feel a surge of anxiety. Emphasize safety and that it will pass.',
 };
 
+// The emotion label is derived HERE (server-side), keyed by id — never taken
+// from the client. This is the core abuse protection: a crafted `label` can't
+// reach the model, so the endpoint can't be used as a free LLM proxy. An
+// unknown id simply yields no AI call. Mirror of client catalog labels.
+const LABELS: Record<string, string> = {
+  'bad-day': 'Bad Day',
+  'feeling-low': 'Feeling Low',
+  'exhausted': 'Emotionally Exhausted',
+  'overthinking': 'Overthinking',
+  'need-comfort': 'Need Comfort',
+  'need-encouragement': 'Need Encouragement',
+  'lonely': 'Lonely',
+  'anxiety-spike': 'Anxiety Spike',
+};
+
 // ---- Curated fallback (mirror of client catalog) ----------------------------
 
 const CURATED: Record<string, string> = {
@@ -150,10 +165,13 @@ function sanitizeAi(raw: string | null): string | null {
   return t;
 }
 
-async function askGroq(label: string, emotionId: string): Promise<string | null> {
+async function askGroq(emotionId: string): Promise<string | null> {
   if (!GROQ_API_KEY) return null;
-  const guidance = EMOTION_GUIDANCE[emotionId] ?? '';
-  const userContent = `The person is feeling: "${label}". ${guidance}`.trim();
+  // Build the prompt entirely from server-side maps — never client free text.
+  const label = LABELS[emotionId];
+  const guidance = EMOTION_GUIDANCE[emotionId];
+  if (!label || !guidance) return null; // unknown emotion id → no AI call
+  const userContent = `The person is feeling: "${label}". ${guidance}`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
@@ -190,12 +208,12 @@ Deno.serve(async (req) => {
   }
 
   let emotionId = '';
-  let label = '';
   let note = '';
   try {
     const body = await req.json();
     emotionId = String(body?.emotionId ?? '');
-    label = String(body?.label ?? '').slice(0, 60);
+    // `note` is the only free text accepted, and it is used ONLY for crisis
+    // detection — it is never sent to the model. (Client `label` is ignored.)
     note = String(body?.note ?? '').slice(0, 500);
   } catch (_err) {
     // malformed body — still respond with comfort
@@ -207,7 +225,7 @@ Deno.serve(async (req) => {
   }
 
   // 2. AI, validated.
-  const aiText = label ? sanitizeAi(await askGroq(label, emotionId)) : null;
+  const aiText = sanitizeAi(await askGroq(emotionId));
   if (aiText) return json({ text: aiText, source: 'ai' });
 
   // 3. Curated fallback.

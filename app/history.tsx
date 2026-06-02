@@ -1,10 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { theme } from '../src/theme';
 import { EMOTIONS, getEmotion, type EmotionId } from '../src/emotions/catalog';
 import { getLocalLogs, clearLocalLogs, type LocalLog } from '../src/lib/localHistory';
+import { clearServerHistory } from '../src/lib/sync';
+import { useSession } from '../src/features/auth/SessionProvider';
+import { supabase } from '../src/lib/supabase';
 import { buildInsights, countByEmotion, recentLogs } from '../src/features/history/insights';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -50,25 +53,27 @@ function groupByDay(logs: LocalLog[], nowMs: number): DayGroup[] {
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const { session, userId, syncing } = useSession();
   const [logs, setLogs] = useState<LocalLog[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<EmotionId | 'all'>('all');
 
-  // Reload from device whenever the screen is focused, so new check-ins appear.
+  const load = useCallback(async () => {
+    const ls = await getLocalLogs(userId);
+    setLogs(ls);
+    setLoaded(true);
+  }, [userId]);
+
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      getLocalLogs().then((ls) => {
-        if (active) {
-          setLogs(ls);
-          setLoaded(true);
-        }
-      });
-      return () => {
-        active = false;
-      };
-    }, []),
+      void load();
+    }, [load]),
   );
+
+  // Reload after a sign-in sync completes, or when the signed-in user changes.
+  useEffect(() => {
+    void load();
+  }, [load, syncing]);
 
   const nowMs = Date.now();
   const sorted = [...logs].sort(
@@ -79,17 +84,31 @@ export default function HistoryScreen() {
   const filtered = filter === 'all' ? sorted : sorted.filter((l) => l.emotion === filter);
   const groups = groupByDay(filtered, nowMs);
 
+  const signOut = async () => {
+    const uid = userId;
+    await supabase.auth.signOut();
+    if (uid) await clearLocalLogs(uid);
+  };
+
   const confirmClear = () => {
+    const signedIn = !!userId;
     Alert.alert(
       'Clear history?',
-      'This removes your check-ins from this device. It can’t be undone.',
+      signedIn
+        ? 'This removes your check-ins from your account on all devices. It can’t be undone.'
+        : 'This removes your check-ins from this device. It can’t be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Clear',
           style: 'destructive',
           onPress: async () => {
-            await clearLocalLogs();
+            if (signedIn && userId) {
+              await clearServerHistory(userId);
+              await clearLocalLogs(userId);
+            } else {
+              await clearLocalLogs(null);
+            }
             setLogs([]);
             setFilter('all');
           },
@@ -98,11 +117,11 @@ export default function HistoryScreen() {
     );
   };
 
-  const isEmpty = loaded && logs.length === 0;
+  const restoring = !!userId && syncing && logs.length === 0;
+  const isEmpty = loaded && logs.length === 0 && !restoring;
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={16} accessibilityLabel="Back">
           <Text style={styles.back}>‹ Back</Text>
@@ -113,16 +132,32 @@ export default function HistoryScreen() {
         <Text style={styles.title}>Looking back</Text>
         <Text style={styles.subtitle}>A gentle record of how you’ve felt.</Text>
 
-        {isEmpty ? (
+        {/* Backup nudge — only signed-out, only when there's something to protect */}
+        {!userId && logs.length > 0 && (
+          <View style={styles.banner}>
+            <Text style={styles.bannerText}>These live only on this device.</Text>
+            <Pressable onPress={() => router.push('/sign-in')} hitSlop={8}>
+              <Text style={styles.bannerAction}>Back up</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {restoring ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No check-ins yet.</Text>
-            <Text style={styles.emptyHint}>
-              When you tap how you feel, it will quietly appear here.
-            </Text>
+            <Text style={styles.emptyHint}>Bringing your check-ins back…</Text>
+          </View>
+        ) : isEmpty ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No check-ins on this device yet.</Text>
+            <Text style={styles.emptyHint}>When you tap how you feel, it will quietly appear here.</Text>
+            {!userId && (
+              <Pressable onPress={() => router.push('/sign-in')} hitSlop={10} style={styles.emptySignIn}>
+                <Text style={styles.signInLink}>Already have an account? Sign in to bring yours back.</Text>
+              </Pressable>
+            )}
           </View>
         ) : (
           <>
-            {/* Soft insights */}
             {insights.length > 0 && (
               <View style={styles.card}>
                 {insights.map((line, i) => (
@@ -133,7 +168,6 @@ export default function HistoryScreen() {
               </View>
             )}
 
-            {/* Minimal "Lately" summary — past 7 days */}
             {weekly.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Lately</Text>
@@ -152,7 +186,6 @@ export default function HistoryScreen() {
               </View>
             )}
 
-            {/* Filter chips */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -169,7 +202,6 @@ export default function HistoryScreen() {
               ))}
             </ScrollView>
 
-            {/* Timeline */}
             {groups.length === 0 ? (
               <Text style={styles.noneForFilter}>Nothing here for that feeling yet.</Text>
             ) : (
@@ -191,10 +223,28 @@ export default function HistoryScreen() {
             )}
 
             <Pressable onPress={confirmClear} hitSlop={12} style={styles.clear}>
-              <Text style={styles.clearText}>Clear history on this device</Text>
+              <Text style={styles.clearText}>
+                {userId ? 'Clear history on all devices' : 'Clear history on this device'}
+              </Text>
             </Pressable>
           </>
         )}
+
+        {/* Account controls */}
+        <View style={styles.account}>
+          {userId ? (
+            <>
+              <Text style={styles.accountText}>Signed in as {session?.user?.email ?? 'your account'}</Text>
+              <Pressable onPress={signOut} hitSlop={10}>
+                <Text style={styles.accountAction}>Sign out</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable onPress={() => router.push('/sign-in')} hitSlop={10}>
+              <Text style={styles.accountAction}>Sign in or back up</Text>
+            </Pressable>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -213,24 +263,14 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: theme.colors.canvas,
-  },
-  topBar: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
+  safe: { flex: 1, backgroundColor: theme.colors.canvas },
+  topBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   back: {
     color: theme.colors.inkSecondary,
     fontSize: theme.typography.size.ui,
     fontFamily: theme.typography.family.sans,
   },
-  scroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 48,
-  },
+  scroll: { paddingHorizontal: 20, paddingBottom: 48 },
   title: {
     color: theme.colors.inkPrimary,
     fontSize: theme.typography.size.greeting,
@@ -244,11 +284,27 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 24,
   },
-  empty: {
-    marginTop: 60,
+  banner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
+  bannerText: {
+    color: theme.colors.inkSecondary,
+    fontSize: theme.typography.size.body,
+    fontFamily: theme.typography.family.sans,
+  },
+  bannerAction: {
+    color: theme.colors.accentWhisper,
+    fontSize: theme.typography.size.body,
+    fontFamily: theme.typography.family.sans,
+  },
+  empty: { marginTop: 60, alignItems: 'center', gap: 10 },
   emptyText: {
     color: theme.colors.inkSecondary,
     fontSize: theme.typography.size.response,
@@ -260,6 +316,13 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.family.sans,
     textAlign: 'center',
     paddingHorizontal: 24,
+  },
+  emptySignIn: { marginTop: 14 },
+  signInLink: {
+    color: theme.colors.accentWhisper,
+    fontSize: theme.typography.size.body,
+    fontFamily: theme.typography.family.sans,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -274,9 +337,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     fontFamily: theme.typography.family.serif,
   },
-  section: {
-    marginBottom: 24,
-  },
+  section: { marginBottom: 24 },
   sectionTitle: {
     color: theme.colors.inkSecondary,
     fontSize: theme.typography.size.ui,
@@ -289,11 +350,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 12,
   },
-  pills: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -303,19 +360,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  pillEmoji: {
-    fontSize: 18,
-  },
+  pillEmoji: { fontSize: 18 },
   pillCount: {
     color: theme.colors.inkSecondary,
     fontSize: theme.typography.size.body,
     fontFamily: theme.typography.family.sans,
   },
-  chips: {
-    gap: 8,
-    paddingVertical: 4,
-    marginBottom: 20,
-  },
+  chips: { gap: 8, paddingVertical: 4, marginBottom: 20 },
   chip: {
     borderRadius: 999,
     borderWidth: 1,
@@ -334,12 +385,8 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.size.body,
     fontFamily: theme.typography.family.sans,
   },
-  chipTextActive: {
-    color: theme.colors.inkPrimary,
-  },
-  group: {
-    marginBottom: 20,
-  },
+  chipTextActive: { color: theme.colors.inkPrimary },
+  group: { marginBottom: 20 },
   dayLabel: {
     color: theme.colors.inkTertiary,
     fontSize: theme.typography.size.caption,
@@ -354,10 +401,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.surface,
   },
-  rowEmoji: {
-    fontSize: 22,
-    marginRight: 14,
-  },
+  rowEmoji: { fontSize: 22, marginRight: 14 },
   rowLabel: {
     flex: 1,
     color: theme.colors.inkPrimary,
@@ -377,14 +421,28 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
   },
-  clear: {
-    marginTop: 24,
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
+  clear: { marginTop: 24, alignItems: 'center', paddingVertical: 12 },
   clearText: {
     color: theme.colors.inkTertiary,
     fontSize: theme.typography.size.caption,
+    fontFamily: theme.typography.family.sans,
+  },
+  account: {
+    marginTop: 28,
+    paddingTop: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.surface,
+    alignItems: 'center',
+    gap: 8,
+  },
+  accountText: {
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.caption,
+    fontFamily: theme.typography.family.sans,
+  },
+  accountAction: {
+    color: theme.colors.accentWhisper,
+    fontSize: theme.typography.size.body,
     fontFamily: theme.typography.family.sans,
   },
 });
