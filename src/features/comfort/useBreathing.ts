@@ -38,8 +38,10 @@ export function useBreathing() {
       animation = Animated.timing(scale, {
         toValue: step.to,
         duration: step.duration,
-        // Hold is a still pause; inhale/exhale swell organically.
-        easing: step.key === 'hold' ? Easing.linear : Easing.inOut(Easing.ease),
+        // Hold is a still pause; inhale/exhale follow a sine ease-in-out, which
+        // matches the natural rhythm of breath and reaches each end at zero
+        // velocity, so phase changes never feel abrupt.
+        easing: step.key === 'hold' ? Easing.linear : Easing.inOut(Easing.sin),
         useNativeDriver: true,
       });
 

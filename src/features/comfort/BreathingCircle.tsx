@@ -12,15 +12,18 @@ type Props = {
 /** A faint static ring with a soft core that expands and contracts with the breath. */
 export function BreathingCircle({ scale, dim }: Props) {
   const coreScale = scale.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
+  // The core also brightens a touch as it expands, so the breath feels alive
+  // rather than mechanical. Native-driver friendly (opacity only).
+  const coreOpacity = scale.interpolate({
+    inputRange: [0, 1],
+    outputRange: dim ? [0.28, 0.42] : [0.62, 0.85],
+  });
 
   return (
     <View style={styles.wrap}>
       <View style={styles.ring} />
       <Animated.View
-        style={[
-          styles.core,
-          { transform: [{ scale: coreScale }], opacity: dim ? 0.4 : 0.75 },
-        ]}
+        style={[styles.core, { transform: [{ scale: coreScale }], opacity: coreOpacity }]}
       />
     </View>
   );

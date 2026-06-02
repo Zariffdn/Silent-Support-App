@@ -69,6 +69,10 @@ export default function SelectionScreen() {
         </Pressable>
 
         <View style={styles.footer}>
+          <Pressable onPress={() => router.push('/settings')} hitSlop={10} accessibilityLabel="Settings">
+            <Text style={styles.footerLink}>Settings</Text>
+          </Pressable>
+          <Text style={styles.footerDot}>·</Text>
           <Pressable onPress={() => router.push('/help')} hitSlop={10} accessibilityLabel="Find help">
             <Text style={styles.footerLink}>Help</Text>
           </Pressable>

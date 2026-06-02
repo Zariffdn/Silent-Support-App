@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, Text, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { theme } from '../src/theme';
 import { useBreathing } from '../src/features/comfort/useBreathing';
 import { BreathingCircle } from '../src/features/comfort/BreathingCircle';
 import { GroundingLine } from '../src/features/comfort/GroundingLine';
+import { getBreathingGuidance, type BreathingGuidance } from '../src/lib/preferences';
 
 export default function ComfortScreen() {
   const router = useRouter();
@@ -13,6 +15,31 @@ export default function ComfortScreen() {
 
   // "Stay in silence": one tap strips all words away, leaving only the breath.
   const [silent, setSilent] = useState(false);
+
+  // Breathing guidance preference (local-only). Silent is the default; haptics
+  // are opt-in. Re-read on focus so a change in Settings takes effect next time.
+  const [guidance, setGuidance] = useState<BreathingGuidance>('silent');
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getBreathingGuidance().then((g) => {
+        if (active) setGuidance(g);
+      });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  // Gentle Haptics: a single soft pulse at the start of inhale and exhale (never
+  // on hold, never continuous). If the device has no haptics, this no-ops
+  // silently — the experience just falls back to Silent.
+  useEffect(() => {
+    if (guidance !== 'haptics') return;
+    if (phase.key === 'inhale' || phase.key === 'exhale') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
+    }
+  }, [phase.key, guidance]);
 
   // Gently crossfade the phase cue whenever the phase changes.
   const cue = useRef(new Animated.Value(1)).current;
