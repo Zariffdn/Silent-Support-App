@@ -25,7 +25,10 @@ async function main() {
 
   await sharp({ create: { width: W, height: H, channels: 3, background: BG } })
     .composite([
-      { input: mark, top: 360, left: Math.round((W - MARK) / 2) },
+      // 'lighten' = max(canvas, logo). The logo's own near-black background
+      // (#030418) is darker than the canvas on every channel, so it dissolves
+      // into BG while the bright mark + glow are kept. No visible square.
+      { input: mark, top: 360, left: Math.round((W - MARK) / 2), blend: 'lighten' },
       { input: wordmark, top: 1130, left: 0 },
     ])
     .png()
