@@ -23,14 +23,16 @@ type ServerRow = { id: string; emotion: string; created_at: string };
  */
 export async function syncOnSignIn(userId: string): Promise<void> {
   try {
-    // 1. Gather device-local logs to upload: anon (pre-account) + uid cache
-    //    (catches anything created while signed-in but offline).
+    // 1. Start from ALL device-local rows (anon pre-account + per-uid cache).
+    //    These seed the merge so a local-only row can never be dropped.
     const [anon, cached] = await Promise.all([getAnonLogs(), getLocalLogs(userId)]);
-    const byId = new Map<string, LocalLog>();
-    for (const l of [...cached, ...anon]) byId.set(l.id, l);
-    const local = [...byId.values()];
+    const merged = new Map<string, LocalLog>();
+    for (const l of [...cached, ...anon]) merged.set(l.id, l);
+    const local = [...merged.values()];
 
-    // 2. Upload (ignore rows already on the server).
+    // 2. Upload device-local rows (idempotent; ignore rows already present).
+    //    Best-effort — if this fails, the rows still survive locally (step 4)
+    //    and will be retried on the next sync.
     if (local.length > 0) {
       await supabase.from('emotion_logs').upsert(
         local.map((l) => ({
@@ -43,24 +45,28 @@ export async function syncOnSignIn(userId: string): Promise<void> {
       );
     }
 
-    // 3. Pull the full account history → per-user cache (RLS scopes to own rows).
-    const { data, error } = await supabase
-      .from('emotion_logs')
-      .select('id, emotion, created_at')
-      .order('created_at', { ascending: false });
-
+    // 3. Pull server rows and UNION them in — never overwrite. Server rows are
+    //    layered on top of the local seed, so local-only rows are preserved
+    //    even if the pull (or the upload above) failed.
+    const { data, error } = await supabase.from('emotion_logs').select('id, emotion, created_at');
     if (!error && data) {
-      const rows = data as ServerRow[];
-      await writeLocalLogs(
-        userId,
-        rows.map((r) => ({ id: r.id, emotion: r.emotion as EmotionId, createdAt: r.created_at })),
-      );
+      for (const r of data as ServerRow[]) {
+        merged.set(r.id, { id: r.id, emotion: r.emotion as EmotionId, createdAt: r.created_at });
+      }
     }
 
-    // 4. The anon store is now folded into the account.
+    // 4. Write the union to the per-user cache, in a deterministic order.
+    const unioned = [...merged.values()].sort((a, b) => {
+      const t = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return t !== 0 ? t : a.id.localeCompare(b.id);
+    });
+    await writeLocalLogs(userId, unioned);
+
+    // 5. Anon rows are now folded into the per-user cache (step 4) — and uploaded
+    //    if online — so it is safe to clear the anon store with no risk of loss.
     await clearAnonLogs();
   } catch {
-    // best-effort; the local cache still works offline
+    // best-effort; the local cache remains intact and usable offline
   }
 }
 

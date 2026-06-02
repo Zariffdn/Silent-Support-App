@@ -9,12 +9,15 @@ type SessionState = {
   userId: string | null;
   /** True while the one-shot sign-in sync (upload + pull) is running. */
   syncing: boolean;
+  /** True until the initial session has been resolved (prevents auth flash). */
+  loading: boolean;
 };
 
 const SessionContext = createContext<SessionState>({
   session: null,
   userId: null,
   syncing: false,
+  loading: true,
 });
 
 export const useSession = () => useContext(SessionContext);
@@ -22,12 +25,16 @@ export const useSession = () => useContext(SessionContext);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const syncedFor = useRef<string | null>(null);
 
   const userId = session?.user?.id ?? null;
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -50,17 +57,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!userId) syncedFor.current = null;
   }, [userId]);
 
-  // Re-run the one-shot sync on app foreground while signed in — cheap catch-up
-  // for anything created offline. Not a queue, just one call at a lifecycle point.
+  // AppState wiring: keep Supabase token auto-refresh tied to foreground (RN
+  // best practice), and re-run the one-shot sync on foreground while signed in
+  // (cheap catch-up for anything created offline — not a queue).
   useEffect(() => {
+    supabase.auth.startAutoRefresh();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && userId) void runSync(userId);
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh();
+        if (userId) void runSync(userId);
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
     });
     return () => sub.remove();
   }, [userId]);
 
   return (
-    <SessionContext.Provider value={{ session, userId, syncing }}>
+    <SessionContext.Provider value={{ session, userId, syncing, loading }}>
       {children}
     </SessionContext.Provider>
   );

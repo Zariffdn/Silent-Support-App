@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,8 +23,17 @@ export default function SignInScreen() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  // Resend cooldown: after a code is sent, count down 30s before allowing another.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const sendCode = async () => {
+    if (cooldown > 0) return;
     const e = email.trim().toLowerCase();
     if (!EMAIL_RE.test(e)) {
       setError('That doesn’t look like an email yet.');
@@ -42,6 +51,7 @@ export default function SignInScreen() {
       return;
     }
     setPhase('code');
+    setCooldown(30);
   };
 
   const verify = async () => {
@@ -88,8 +98,8 @@ export default function SignInScreen() {
           <>
             <Text style={styles.title}>Keep your check-ins safe</Text>
             <Text style={styles.intro}>
-              Enter your email and we’ll send a 6-digit code — no password to remember. Use the same
-              email you signed up with.
+              Enter your email and we’ll send you a code — no password to remember. Use the same
+              email each time; a different email creates a separate account.
             </Text>
             <TextInput
               style={styles.input}
@@ -103,8 +113,14 @@ export default function SignInScreen() {
               autoComplete="email"
               editable={!busy}
             />
-            <Pressable style={[styles.button, busy && styles.buttonBusy]} onPress={sendCode} disabled={busy}>
-              <Text style={styles.buttonText}>{busy ? 'Sending…' : 'Send code'}</Text>
+            <Pressable
+              style={[styles.button, (busy || cooldown > 0) && styles.buttonBusy]}
+              onPress={sendCode}
+              disabled={busy || cooldown > 0}
+            >
+              <Text style={styles.buttonText}>
+                {cooldown > 0 ? `Send again in ${cooldown}s` : busy ? 'Sending…' : 'Send code'}
+              </Text>
             </Pressable>
             <Text style={styles.note}>
               We use your email only to sign you in. Only you can ever see your check-ins.

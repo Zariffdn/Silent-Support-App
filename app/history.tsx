@@ -53,7 +53,7 @@ function groupByDay(logs: LocalLog[], nowMs: number): DayGroup[] {
 
 export default function HistoryScreen() {
   const router = useRouter();
-  const { session, userId, syncing } = useSession();
+  const { session, userId, syncing, loading } = useSession();
   const [logs, setLogs] = useState<LocalLog[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<EmotionId | 'all'>('all');
@@ -118,7 +118,10 @@ export default function HistoryScreen() {
   };
 
   const restoring = !!userId && syncing && logs.length === 0;
-  const isEmpty = loaded && logs.length === 0 && !restoring;
+  // While auth is still resolving (or the first load hasn't finished), show a
+  // neutral loading state — never the signed-out "sign in" prompt.
+  const showLoading = loading || !loaded || restoring;
+  const isEmpty = !showLoading && logs.length === 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -133,7 +136,7 @@ export default function HistoryScreen() {
         <Text style={styles.subtitle}>A gentle record of how you’ve felt.</Text>
 
         {/* Backup nudge — only signed-out, only when there's something to protect */}
-        {!userId && logs.length > 0 && (
+        {!loading && !userId && logs.length > 0 && (
           <View style={styles.banner}>
             <Text style={styles.bannerText}>These live only on this device.</Text>
             <Pressable onPress={() => router.push('/sign-in')} hitSlop={8}>
@@ -142,9 +145,11 @@ export default function HistoryScreen() {
           </View>
         )}
 
-        {restoring ? (
+        {showLoading ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyHint}>Bringing your check-ins back…</Text>
+            {restoring ? (
+              <Text style={styles.emptyHint}>Bringing your check-ins back…</Text>
+            ) : null}
           </View>
         ) : isEmpty ? (
           <View style={styles.empty}>
@@ -230,21 +235,25 @@ export default function HistoryScreen() {
           </>
         )}
 
-        {/* Account controls */}
-        <View style={styles.account}>
-          {userId ? (
-            <>
-              <Text style={styles.accountText}>Signed in as {session?.user?.email ?? 'your account'}</Text>
-              <Pressable onPress={signOut} hitSlop={10}>
-                <Text style={styles.accountAction}>Sign out</Text>
+        {/* Account controls — hidden until auth resolves to avoid a flash */}
+        {!loading && (
+          <View style={styles.account}>
+            {userId ? (
+              <>
+                <Text style={styles.accountText}>
+                  Signed in as {session?.user?.email ?? 'your account'}
+                </Text>
+                <Pressable onPress={signOut} hitSlop={10}>
+                  <Text style={styles.accountAction}>Sign out</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable onPress={() => router.push('/sign-in')} hitSlop={10}>
+                <Text style={styles.accountAction}>Sign in or back up</Text>
               </Pressable>
-            </>
-          ) : (
-            <Pressable onPress={() => router.push('/sign-in')} hitSlop={10}>
-              <Text style={styles.accountAction}>Sign in or back up</Text>
-            </Pressable>
-          )}
-        </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
