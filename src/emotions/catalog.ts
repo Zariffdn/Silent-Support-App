@@ -3,7 +3,7 @@
 // gentle, human reply is always available even when the AI is not.
 //
 // This list is the product source of truth and mirrors the README. If you
-// add/rename an emotion, also update the Edge Function's CURATED map
+// add/rename an emotion, also update the Edge Function's CURATED + guidance maps
 // (supabase/functions/generate-support/index.ts) — they must stay in sync.
 
 export type EmotionId =
@@ -32,6 +32,7 @@ export const EMOTIONS: Emotion[] = [
     curated: [
       'Some days just weigh more. It’s okay to set it down for a moment.',
       'This day doesn’t define you. You made it here, and that is enough.',
+      'You don’t have to make sense of today. You just have to get through it.',
     ],
   },
   {
@@ -41,6 +42,7 @@ export const EMOTIONS: Emotion[] = [
     curated: [
       'It’s okay to feel low right now. You don’t have to lift yourself this second.',
       'Low moments are still part of being human. You’re allowed to just be here.',
+      'There’s nothing wrong with you for feeling this. Heaviness visits everyone.',
     ],
   },
   {
@@ -50,6 +52,7 @@ export const EMOTIONS: Emotion[] = [
     curated: [
       'You’ve been carrying so much. Resting isn’t giving up.',
       'It’s okay to feel empty right now. You don’t have to refill all at once.',
+      'Even resting counts as doing something. You’re allowed to stop here.',
     ],
   },
   {
@@ -59,6 +62,7 @@ export const EMOTIONS: Emotion[] = [
     curated: [
       'Your mind is only trying to keep you safe. You can let it rest for now.',
       'Not every thought needs an answer tonight. You’re allowed to pause.',
+      'You don’t have to solve it right now. The quiet can hold it for a while.',
     ],
   },
   {
@@ -68,6 +72,7 @@ export const EMOTIONS: Emotion[] = [
     curated: [
       'Consider yourself held. You don’t have to carry all of this alone.',
       'Wrapping you in something gentle right now. You’re safe in this moment.',
+      'You’re allowed to be taken care of, even if only by this quiet moment.',
     ],
   },
   {
@@ -77,6 +82,7 @@ export const EMOTIONS: Emotion[] = [
     curated: [
       'You’re growing, even when it’s slow. Small steps still move you forward.',
       'You’ve survived every hard day so far. That’s quiet proof of your strength.',
+      'You don’t have to do it all at once. The next small step is enough.',
     ],
   },
   {
@@ -86,6 +92,7 @@ export const EMOTIONS: Emotion[] = [
     curated: [
       'Even in the quiet, you matter. Someone is glad you exist.',
       'Loneliness is heavy, but it isn’t the whole truth about you.',
+      'Being alone right now doesn’t mean you are unloved. This feeling will shift.',
     ],
   },
   {
@@ -95,6 +102,7 @@ export const EMOTIONS: Emotion[] = [
     curated: [
       'This rush of anxiety is real, and it will pass. You are safe in this moment.',
       'Your body is only trying to protect you. Nothing here needs solving right now.',
+      'Your feet are on the ground and you are breathing. That is enough right now.',
     ],
   },
 ];

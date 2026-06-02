@@ -1,12 +1,17 @@
-// Silent Support — "generate-support" Edge Function (Deno runtime).
+// Silent Support — "generate-support" Edge Function (Deno).
 //
-// Receives a single emotion and returns ONE short, gentle response.
-//   Request:  { emotionId: string, label: string }
-//   Response: { text: string, source: "ai" | "curated" }
+//   Request:  { emotionId: string, label: string, note?: string }
+//   Response: { text: string, source: "ai" | "curated" | "safety" }
 //
-// Two-layer safety: if OPENAI_API_KEY is unset or OpenAI fails, the function
-// itself returns a curated response (still HTTP 200) so the client always has
-// something calm to show.
+// Three layers, evaluated in order:
+//   1. Safety pre-check — crisis keywords route to a fixed safety response and
+//      skip the AI entirely. (Placeholder hook: the app sends no free text
+//      today, so `note` is normally absent; this activates the moment any text
+//      input — e.g. optional journaling — is added. Mirror of
+//      src/features/safety/crisis.ts — keep the two in sync.)
+//   2. AI — OpenAI with a tightly constrained prompt + per-emotion guidance,
+//      then the output is sanitized and validated for tone/length.
+//   3. Curated fallback — if no key, the AI fails, or validation rejects it.
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini';
@@ -18,18 +23,43 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const SYSTEM_PROMPT = `You are the gentle presence inside "Silent Support," an app for people who are too emotionally exhausted to explain how they feel. A person has tapped a single emotion. Reply with ONE short message (1-3 sentences, under ~220 characters) that simply lets them feel seen.
+// ---- Safety layer -----------------------------------------------------------
 
-Rules:
-- Be warm, calm, validating, and human.
-- Do NOT give advice, instructions, or solutions.
-- Do NOT ask any questions.
-- Do NOT use the person's name or assume details about their life.
-- No emojis. No clinical language. No toxic positivity.
-- Sound like a kind person sitting quietly beside them, not a chatbot.`;
+const CRISIS_PATTERNS = [
+  'kill myself', 'killing myself', 'suicide', 'suicidal', 'end my life',
+  'want to die', 'wanna die', "don't want to live", 'don’t want to live',
+  'no reason to live', 'better off dead', 'hurt myself', 'harm myself',
+  'self harm', 'self-harm', 'cut myself', 'cutting myself', 'take my life',
+  'ending it all',
+];
 
-// Server-side curated fallbacks, keyed by emotion id. Keep in sync with the
-// client catalog (src/emotions/catalog.ts).
+// NOTE: localize this for your region before launch (add a specific crisis
+// line / number). Kept generic so it is never region-wrong.
+const SAFETY_RESPONSE =
+  'What you’re feeling sounds really heavy, and you don’t have to carry it alone. ' +
+  'If you might be in danger or thinking of harming yourself, please reach out right now ' +
+  'to a crisis line or your local emergency services — people want to help you through this.';
+
+function detectCrisis(text: string): boolean {
+  const t = text.toLowerCase();
+  return CRISIS_PATTERNS.some((p) => t.includes(p));
+}
+
+// ---- Standardized emotion → AI guidance -------------------------------------
+
+const EMOTION_GUIDANCE: Record<string, string> = {
+  'bad-day': 'They had a hard day. Acknowledge the weight without minimizing it.',
+  'feeling-low': 'They feel low and flat. Meet them gently; do not try to lift them.',
+  'exhausted': 'They are emotionally drained. Reassure them that rest is allowed.',
+  'overthinking': 'Their mind will not slow down. Offer permission to pause, not solutions.',
+  'need-comfort': 'They want to feel held. Offer warmth and quiet presence.',
+  'need-encouragement': 'They want gentle encouragement. Be grounded, never cheerleading.',
+  'lonely': 'They feel alone. Softly remind them they matter, without clichés.',
+  'anxiety-spike': 'They feel a surge of anxiety. Emphasize safety and that it will pass.',
+};
+
+// ---- Curated fallback (mirror of client catalog) ----------------------------
+
 const CURATED: Record<string, string> = {
   'bad-day': 'Some days just weigh more. It’s okay to set it down for a moment.',
   'feeling-low': 'It’s okay to feel low right now. You don’t have to lift yourself this second.',
@@ -52,34 +82,98 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-async function askOpenAI(label: string): Promise<string | null> {
+// ---- Prompt -----------------------------------------------------------------
+
+const SYSTEM_PROMPT = `You are the quiet presence inside "Silent Support," an app for people too emotionally exhausted to explain how they feel. Someone has tapped a single emotion. Reply with ONE or TWO short sentences (under 200 characters total) that simply let them feel seen.
+
+Always:
+- Validate the feeling first.
+- Stay calm, warm, and plain-spoken.
+
+Never:
+- Give advice, fixes, steps, or ANY questions.
+- Use emojis, hashtags, or the person's name.
+- Use clinical or diagnostic words.
+- Use motivational-poster language or toxic positivity ("everything happens for a reason", "stay strong", "good vibes", "look on the bright side").
+- Write more than two sentences.
+
+Sound like a kind person sitting beside them in the dark — steady, brief, unhurried.`;
+
+const FEWSHOT: { role: 'user' | 'assistant'; content: string }[] = [
+  {
+    role: 'user',
+    content:
+      'The person is feeling: "Overthinking". Their mind will not slow down. Offer permission to pause, not solutions.',
+  },
+  {
+    role: 'assistant',
+    content:
+      'Your mind is working hard to keep you safe. You’re allowed to set it down for a little while.',
+  },
+  {
+    role: 'user',
+    content:
+      'The person is feeling: "Bad Day". They had a hard day. Acknowledge the weight without minimizing it.',
+  },
+  {
+    role: 'assistant',
+    content: 'Some days just weigh more than others. You don’t have to carry this one gracefully.',
+  },
+];
+
+// ---- Output validation ------------------------------------------------------
+
+const BANNED = [
+  'everything happens for a reason', 'stay strong', 'good vibes', 'positive vibes',
+  'look on the bright side', 'it could be worse', 'just think positive', 'chin up',
+  'silver lining', 'everything will be okay', 'everything will be ok',
+];
+
+const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{FE0F}]/gu;
+
+/** Enforce the tone contract on the model's output. Returns clean text, or null
+ * if it violates a rule (caller then falls back to curated). */
+function sanitizeAi(raw: string | null): string | null {
+  if (!raw) return null;
+  let t = raw.replace(EMOJI, '').replace(/\s+/g, ' ').trim();
+  if (!t) return null;
+  if (t.includes('?')) return null; // no questions
+  const lower = t.toLowerCase();
+  if (BANNED.some((p) => lower.includes(p))) return null;
+  // Keep at most two sentences.
+  const parts = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+  t = parts.slice(0, 2).join(' ').trim();
+  if (t.length < 3 || t.length > 240) return null;
+  return t;
+}
+
+async function askOpenAI(label: string, emotionId: string): Promise<string | null> {
   if (!OPENAI_API_KEY) return null;
+  const guidance = EMOTION_GUIDANCE[emotionId] ?? '';
+  const userContent = `The person is feeling: "${label}". ${guidance}`.trim();
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: OPENAI_MODEL,
-        temperature: 0.8,
-        max_tokens: 90,
+        temperature: 0.6,
+        max_tokens: 70,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `The person is feeling: "${label}". Offer your one short, gentle response.` },
+          ...FEWSHOT,
+          { role: 'user', content: userContent },
         ],
       }),
       signal: controller.signal,
     });
-
     if (!res.ok) return null;
     const data = await res.json();
     const text: string | undefined = data?.choices?.[0]?.message?.content;
-    return text?.trim() || null;
+    return text ?? null;
   } catch (_err) {
     return null;
   } finally {
@@ -94,17 +188,25 @@ Deno.serve(async (req) => {
 
   let emotionId = '';
   let label = '';
+  let note = '';
   try {
     const body = await req.json();
     emotionId = String(body?.emotionId ?? '');
     label = String(body?.label ?? '').slice(0, 60);
+    note = String(body?.note ?? '').slice(0, 500);
   } catch (_err) {
-    // Malformed body — still respond with a generic comfort.
+    // malformed body — still respond with comfort
   }
 
-  const aiText = label ? await askOpenAI(label) : null;
-  if (aiText) {
-    return json({ text: aiText, source: 'ai' });
+  // 1. Safety pre-check (fires only when free text is provided).
+  if (note && detectCrisis(note)) {
+    return json({ text: SAFETY_RESPONSE, source: 'safety' });
   }
+
+  // 2. AI, validated.
+  const aiText = label ? sanitizeAi(await askOpenAI(label, emotionId)) : null;
+  if (aiText) return json({ text: aiText, source: 'ai' });
+
+  // 3. Curated fallback.
   return json({ text: curatedFor(emotionId), source: 'curated' });
 });
