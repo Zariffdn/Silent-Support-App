@@ -85,7 +85,7 @@ export default function SelectionScreen() {
             <Text style={styles.footerLink}>Licenses</Text>
           </Pressable>
         </View>
-        <Text style={styles.copyright}>© Silent Support</Text>
+        <Text style={styles.copyright}>© 2026 Silent Support</Text>
       </ScrollView>
     </SafeAreaView>
   );
