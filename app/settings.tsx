@@ -1,9 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { theme } from '../src/theme';
+import { supabase } from '../src/lib/supabase';
+import { clearLocalLogs, clearAnonLogs } from '../src/lib/localHistory';
+import { useSession } from '../src/features/auth/SessionProvider';
 import {
   getComfortAudio,
   setComfortAudio,
@@ -25,8 +28,45 @@ const OPTIONS: { value: ComfortAudio; label: string; sub: string }[] = [
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { userId, session } = useSession();
   const [audio, setAudio] = useState<ComfortAudio>('silent');
   const [volume, setVolume] = useState(DEFAULT_VOLUME);
+  const [deleting, setDeleting] = useState(false);
+
+  const runDelete = async () => {
+    setDeleting(true);
+    const uid = userId;
+    const { error } = await supabase.functions.invoke('delete-account', { body: {} });
+    if (error) {
+      setDeleting(false);
+      Alert.alert(
+        'Couldn’t delete',
+        'We couldn’t delete your account just now. Please try again in a moment.',
+      );
+      return;
+    }
+    // Account is gone on the server. Clear this device and sign out.
+    try {
+      if (uid) await clearLocalLogs(uid);
+      await clearAnonLogs();
+      await supabase.auth.signOut();
+    } catch {
+      // best-effort local cleanup
+    }
+    setDeleting(false);
+    router.replace('/');
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete account?',
+      'This permanently removes your account, your backed-up check-ins, and your account data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete My Account', style: 'destructive', onPress: runDelete },
+      ],
+    );
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -103,6 +143,25 @@ export default function SettingsScreen() {
               maximumTrackTintColor={theme.colors.surfaceHigh}
               thumbTintColor={theme.colors.inkPrimary}
             />
+          </View>
+        )}
+
+        {userId && (
+          <View style={styles.accountSection}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <Text style={styles.accountEmail}>
+              Signed in as {session?.user?.email ?? 'your account'}
+            </Text>
+            <Pressable
+              onPress={confirmDelete}
+              disabled={deleting}
+              hitSlop={8}
+              style={[styles.deleteBtn, deleting && styles.deleteBtnBusy]}
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+            >
+              <Text style={styles.deleteBtnText}>{deleting ? 'Deleting…' : 'Delete account'}</Text>
+            </Pressable>
           </View>
         )}
       </ScrollView>
@@ -187,4 +246,31 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.family.sans,
   },
   slider: { width: '100%', height: 40, marginTop: 8 },
+  accountSection: {
+    marginTop: 32,
+    paddingTop: 22,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.surface,
+    gap: 12,
+  },
+  accountEmail: {
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.body,
+    fontFamily: theme.typography.family.sans,
+  },
+  deleteBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.accentAlert,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  deleteBtnBusy: { opacity: 0.5 },
+  deleteBtnText: {
+    color: theme.colors.accentAlert,
+    fontSize: theme.typography.size.body,
+    fontFamily: theme.typography.family.sans,
+  },
 });
