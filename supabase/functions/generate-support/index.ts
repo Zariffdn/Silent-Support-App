@@ -9,13 +9,16 @@
 //      today, so `note` is normally absent; this activates the moment any text
 //      input — e.g. optional journaling — is added. Mirror of
 //      src/features/safety/crisis.ts — keep the two in sync.)
-//   2. AI — OpenAI with a tightly constrained prompt + per-emotion guidance,
-//      then the output is sanitized and validated for tone/length.
+//   2. AI — Groq (OpenAI-compatible API) with a tightly constrained prompt +
+//      per-emotion guidance, then the output is sanitized/validated for tone.
 //   3. Curated fallback — if no key, the AI fails, or validation rejects it.
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini';
-const OPENAI_TIMEOUT_MS = 4000;
+// Groq is OpenAI-compatible, free, and fast (responses usually well under the
+// client's 2.5s swap window). Set GROQ_API_KEY as a Supabase function secret.
+const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
+const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'llama-3.3-70b-versatile';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const AI_TIMEOUT_MS = 4000;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -147,19 +150,19 @@ function sanitizeAi(raw: string | null): string | null {
   return t;
 }
 
-async function askOpenAI(label: string, emotionId: string): Promise<string | null> {
-  if (!OPENAI_API_KEY) return null;
+async function askGroq(label: string, emotionId: string): Promise<string | null> {
+  if (!GROQ_API_KEY) return null;
   const guidance = EMOTION_GUIDANCE[emotionId] ?? '';
   const userContent = `The person is feeling: "${label}". ${guidance}`.trim();
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(GROQ_URL, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: OPENAI_MODEL,
+        model: GROQ_MODEL,
         temperature: 0.6,
         max_tokens: 70,
         messages: [
@@ -204,7 +207,7 @@ Deno.serve(async (req) => {
   }
 
   // 2. AI, validated.
-  const aiText = label ? sanitizeAi(await askOpenAI(label, emotionId)) : null;
+  const aiText = label ? sanitizeAi(await askGroq(label, emotionId)) : null;
   if (aiText) return json({ text: aiText, source: 'ai' });
 
   // 3. Curated fallback.
