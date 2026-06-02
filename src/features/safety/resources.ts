@@ -1,9 +1,10 @@
 // Crisis / urgent-help resources surfaced in app/help.tsx.
 //
 // Region: Malaysia (+ an international fallback that works anywhere).
-// ⚠️ Verify these numbers are current before any public launch — helplines
-// occasionally change. Sources: Befrienders KL, Malaysia MOH (Talian HEAL),
-// Talian Kasih, national emergency line.
+// Verified June 2026 against findahelpline.com, Malaysia MOH reporting, and
+// Befrienders KL: 999 (emergency), Befrienders KL 03-7627 2929 (24/7),
+// Talian HEAL 15555 (MOH, 8am–midnight daily), Talian Kasih 15999 (24/7).
+// Re-verify periodically; the international directory link is the safe fallback.
 
 export type ResourceAction =
   | { type: 'call'; number: string } // digits only, used for tel:
@@ -33,13 +34,13 @@ export const CRISIS_RESOURCES: CrisisResource[] = [
   },
   {
     name: 'Talian HEAL (Ministry of Health)',
-    description: 'Mental health support line.',
+    description: 'Mental health support line. Open 8am–midnight, every day.',
     actionLabel: 'Call 15555',
     action: { type: 'call', number: '15555' },
   },
   {
     name: 'Talian Kasih',
-    description: 'National 24-hour welfare and crisis helpline.',
+    description: 'National welfare and support line, available 24 hours.',
     actionLabel: 'Call 15999',
     action: { type: 'call', number: '15999' },
   },

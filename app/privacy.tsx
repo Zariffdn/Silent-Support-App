@@ -1,7 +1,10 @@
-import { Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { theme } from '../src/theme';
+
+// Where account-deletion requests are sent. Change this to your support inbox.
+const SUPPORT_EMAIL = 'zariffdanial1@gmail.com';
 
 const POINTS = [
   'Your check-ins — the emotions you tap — are stored only on this device. They never leave your phone for us to read.',
@@ -12,6 +15,15 @@ const POINTS = [
 
 export default function PrivacyScreen() {
   const router = useRouter();
+
+  const requestDeletion = () => {
+    const subject = encodeURIComponent('Silent Support — account deletion request');
+    const body = encodeURIComponent(
+      'I would like to delete my Silent Support account and all of my check-ins.\n\nAccount email: ',
+    );
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`).catch(() => {});
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.topBar}>
@@ -30,6 +42,18 @@ export default function PrivacyScreen() {
             <Text style={styles.pointText}>{p}</Text>
           </View>
         ))}
+
+        <View style={styles.deleteSection}>
+          <Text style={styles.deleteTitle}>Delete your account</Text>
+          <Text style={styles.deleteText}>
+            You can ask us to delete your account at any time. This permanently removes all of your
+            check-ins from the server and can’t be undone. Requests are handled manually, usually
+            within a few days.
+          </Text>
+          <Pressable onPress={requestDeletion} hitSlop={8} style={styles.deleteButton}>
+            <Text style={styles.deleteButtonText}>Request account deletion</Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.footer}>
           Silent Support offers comfort, not medical care. If you need urgent help, see the Help
@@ -77,6 +101,38 @@ const styles = StyleSheet.create({
     color: theme.colors.inkSecondary,
     fontSize: theme.typography.size.body,
     lineHeight: theme.typography.lineHeight.body,
+    fontFamily: theme.typography.family.sans,
+  },
+  deleteSection: {
+    marginTop: 28,
+    paddingTop: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.surface,
+    gap: 10,
+  },
+  deleteTitle: {
+    color: theme.colors.inkSecondary,
+    fontSize: theme.typography.size.ui,
+    fontFamily: theme.typography.family.sans,
+  },
+  deleteText: {
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.body,
+    lineHeight: theme.typography.lineHeight.body,
+    fontFamily: theme.typography.family.sans,
+  },
+  deleteButton: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceHigh,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  deleteButtonText: {
+    color: theme.colors.accentWhisper,
+    fontSize: theme.typography.size.body,
     fontFamily: theme.typography.family.sans,
   },
   footer: {
