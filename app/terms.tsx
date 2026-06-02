@@ -36,19 +36,19 @@ export default function TermsScreen() {
         <Text style={styles.title}>Terms of Use</Text>
         <Text style={styles.updated}>Last updated: 2 June 2026</Text>
 
-        <P>A few simple things about using Silent Support. No fine print — just what’s fair.</P>
+        <P>A few simple things about using Silent Support. No fine print, just what’s fair.</P>
 
         <H>What it’s for</H>
         <P>
           Silent Support is a quiet space to check in with how you feel and receive a calm, supportive
-          response. It’s here to offer a moment of comfort — nothing more complicated than that.
+          response. It’s here to offer a moment of comfort, nothing more complicated than that.
         </P>
 
         <H>Using it kindly</H>
         <P>Please use Silent Support the way it’s meant to be used:</P>
         <Bullet>
-          Don’t misuse the <Text style={styles.strong}>Help / crisis section</Text> — those helplines
-          exist for people in real distress.
+          Don’t misuse the <Text style={styles.strong}>Help / crisis section</Text>. Those helplines
+          are there for people in real distress.
         </Bullet>
         <Bullet>Don’t try to break, overload, or spam the app or its sign-in system.</Bullet>
         <Bullet>Don’t use it to harm yourself or others, or for anything illegal.</Bullet>
@@ -57,14 +57,14 @@ export default function TermsScreen() {
         <H>Your account</H>
         <P>
           If you create an account, you’re responsible for the email you sign in with. Keep access to
-          that inbox safe — anyone who can read your sign-in codes can reach your account. There are no
-          passwords to manage; the code in your email is the key.
+          that inbox safe, since anyone who can read your sign-in codes can reach your account. There
+          are no passwords to manage; the code in your email is the key.
         </P>
 
         <H>Your check-ins are yours</H>
         <P>
           The emotions you log belong to you. We don’t claim them, sell them, or use them for anything
-          beyond showing them back to you. You can delete them anytime — see the Privacy page.
+          beyond showing them back to you. You can delete them anytime. See the Privacy page.
         </P>
 
         <H>The app is offered “as is”</H>
@@ -87,12 +87,12 @@ export default function TermsScreen() {
         <H>If things go wrong</H>
         <P>
           If an account is used to abuse the app, spam the system, or harm others, we may have to remove
-          it. We’d much rather not — this is a space meant to be gentle — but we’ll act when we need to,
-          to keep it safe for everyone.
+          it. We’d much rather not, since this is a space meant to be gentle, but we’ll act when we
+          need to, to keep it safe for everyone.
         </P>
 
         <H>Questions</H>
-        <P>Anything unclear? Email {SUPPORT_EMAIL} — we’re happy to help.</P>
+        <P>Anything unclear? Email {SUPPORT_EMAIL} and we’re happy to help.</P>
       </ScrollView>
     </SafeAreaView>
   );

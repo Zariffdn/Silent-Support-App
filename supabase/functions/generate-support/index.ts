@@ -41,7 +41,7 @@ const CRISIS_PATTERNS = [
 const SAFETY_RESPONSE =
   'What you’re feeling sounds really heavy, and you don’t have to carry it alone. ' +
   'If you might be in danger or thinking of harming yourself, please reach out right now ' +
-  'to a crisis line or your local emergency services — people want to help you through this.';
+  'to a crisis line or your local emergency services. People want to help you through this.';
 
 function detectCrisis(text: string): boolean {
   const t = text.toLowerCase();

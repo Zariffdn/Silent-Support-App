@@ -98,7 +98,7 @@ export default function SignInScreen() {
           <>
             <Text style={styles.title}>Save your check-ins</Text>
             <Text style={styles.intro}>
-              Add your email and we’ll send a code to sign in — no password needed. Use the same
+              Add your email and we’ll send a code to sign in. No password needed. Use the same
               email each time, so your check-ins stay together.
             </Text>
             <TextInput

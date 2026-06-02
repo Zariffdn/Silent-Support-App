@@ -30,7 +30,7 @@ export default function HelpScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>You’re not alone</Text>
         <Text style={styles.intro}>
-          If you’re carrying something heavy — or thinking about hurting yourself — you don’t have to
+          If you’re carrying something heavy, or thinking about hurting yourself, you don’t have to
           face it alone. These lines are free, confidential, and there for you, any time.
         </Text>
 

@@ -10,7 +10,7 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Something went quiet.</Text>
-      <Text style={styles.body}>The app hit a snag. Take a breath — we can try again.</Text>
+      <Text style={styles.body}>The app hit a snag. Take a breath, and we can try again.</Text>
       <Pressable onPress={retry} style={styles.button} hitSlop={12} accessibilityRole="button">
         <Text style={styles.buttonText}>Try again</Text>
       </Pressable>

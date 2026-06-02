@@ -80,7 +80,12 @@ export default function SelectionScreen() {
           <Pressable onPress={() => router.push('/terms')} hitSlop={10} accessibilityLabel="Terms">
             <Text style={styles.footerLink}>Terms</Text>
           </Pressable>
+          <Text style={styles.footerDot}>·</Text>
+          <Pressable onPress={() => router.push('/licenses')} hitSlop={10} accessibilityLabel="Licenses">
+            <Text style={styles.footerLink}>Licenses</Text>
+          </Pressable>
         </View>
+        <Text style={styles.copyright}>© Silent Support</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -135,9 +140,17 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 16,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+  },
+  copyright: {
+    marginTop: 10,
+    textAlign: 'center',
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.caption,
+    fontFamily: theme.typography.family.sans,
   },
   footerLink: {
     color: theme.colors.inkTertiary,

@@ -155,7 +155,7 @@ export default function HistoryScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyText}>Nothing here yet.</Text>
             <Text style={styles.emptyHint}>
-              Whenever you tap how you feel, it’ll quietly appear here — just for you.
+              Whenever you tap how you feel, it’ll quietly appear here, just for you.
             </Text>
             {!userId && (
               <Pressable onPress={() => router.push('/sign-in')} hitSlop={10} style={styles.emptySignIn}>
