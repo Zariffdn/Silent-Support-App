@@ -8,7 +8,7 @@
     "icon": "./assets/ios_icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/android_icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#0E0F1A"
     },
