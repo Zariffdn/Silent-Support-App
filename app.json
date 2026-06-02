@@ -5,8 +5,13 @@
     "scheme": "silentsupport",
     "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/ios_icon.png",
     "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/android_icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0E0F1A"
+    },
     "plugins": [
       "expo-router",
       "expo-audio"
@@ -16,10 +21,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#0E0F1A",
+        "foregroundImage": "./assets/android_icon.png"
       },
       "predictiveBackGestureEnabled": false
     },

@@ -63,7 +63,7 @@ Silent Support removes the need for explanation.
 
 ---
 
-## ✨ Core Features (MVP)
+## ✨ Core Features
 
 ### 1. Emotional Tap System
 
@@ -75,7 +75,7 @@ No typing required.
 
 ### 2. AI Emotional Companion
 
-A calm system that responds with:
+A calm presence that responds with:
 
 - Validation
 - Presence
@@ -87,26 +87,42 @@ Not a chatbot.
 
 Just a steady presence.
 
+**Presence over intelligence.** A gentle, human-written message appears the instant you tap — never a loading spinner. The AI works quietly in the background; if it answers in time, it softly deepens the response, and if it’s slow or unavailable, the written one simply stays. You always get something calm, instantly, even offline.
+
 ---
 
 ### 3. Comfort Mode
 
 A dedicated calm screen with:
 
-- Breathing animation
-- Soft interaction
-- Optional silence mode
+- Breathing animation (inhale · hold · exhale)
+- Grounding prompts
+- Optional ambient sound
+- Silence mode (one tap strips everything away but the breath)
 - Gentle reset experience
 
 ---
 
 ### 4. Emotion History
 
-Tracks emotional patterns:
+A soft, private record of how you’ve felt:
 
-- What you felt
-- When you felt it
-- Light reflection over time
+- What you felt and when
+- A gentle “lately” summary and light, rule-based reflections
+- Filter by feeling
+
+This is an emotional mirror, **not** a health tracker — no charts, scores, diagnoses, or labels.
+
+---
+
+## 🔒 Privacy
+
+Privacy is the product, not a setting.
+
+- **Local-first.** Your emotion history lives on your device. Signed out, the app makes zero contact with a server for your feelings.
+- **Accounts are optional.** Create one only if you want to back up and sync across devices. Sign-in is a simple emailed code — no password, no magic link.
+- **You own your data.** Clear your history any time, or delete your account entirely (which erases your data from the server).
+- **No tracking.** No third-party analytics SDKs.
 
 ---
 
@@ -126,39 +142,48 @@ Example responses:
 - “You don’t need to explain this right now.”
 - “Let’s slow down for a moment.”
 
+These rules are enforced on both sides: a constrained prompt, and a server-side check that strips anything off-tone (advice, questions, emojis, toxic positivity) before it ever reaches you.
+
+---
+
+## 🆘 Safety
+
+A built-in **Help** screen links crisis resources (Malaysia plus an international directory). Silent Support is a moment of calm, not a substitute for professional or emergency help.
+
 ---
 
 ## 🛠 Tech Stack
 
 ### Mobile
-- React Native (Expo)
-- TypeScript
+- React Native (Expo, expo-router)
+- TypeScript (strict)
 
 ### Backend
-- Supabase (Auth + Database + RLS)
+- Supabase — Auth (email OTP), Postgres + Row-Level Security, Edge Functions (Deno)
 
 ### AI
-- OpenAI API
+- Groq (OpenAI-compatible API), called from a Supabase Edge Function
 
 ---
 
 ## 🧱 Current Scope
 
-This is a SOLO MODE MVP.
+This is a SOLO MODE app.
 
 There are:
 
 ❌ No friends
 ❌ No messaging
 ❌ No social features
-❌ No notifications (for MVP)
+❌ No notifications
 ❌ No gamification
 
 Only:
 
 ✔ Emotional expression
-✔ AI grounding response
-✔ Private emotional tracking
+✔ Instant grounding response (curated, with optional AI depth)
+✔ Private, local-first emotional tracking
+✔ Optional account for backup & sync
 
 ---
 
@@ -173,4 +198,4 @@ without needing to explain why.
 
 ## 🚀 Status
 
-Early MVP Phase — building core emotional system.
+Active development — the core solo loop (tap → instant response → comfort mode), private history, optional accounts, and safety resources are in place.
