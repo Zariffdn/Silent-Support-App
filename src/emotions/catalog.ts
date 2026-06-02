@@ -1,16 +1,20 @@
 // The emotional vocabulary of Silent Support.
 // Each emotion carries its own small library of curated responses so that a
 // gentle, human reply is always available even when the AI is not.
+//
+// This list is the product source of truth and mirrors the README. If you
+// add/rename an emotion, also update the Edge Function's CURATED map
+// (supabase/functions/generate-support/index.ts) — they must stay in sync.
 
 export type EmotionId =
-  | 'need-a-hug'
   | 'bad-day'
-  | 'lonely'
-  | 'overthinking'
+  | 'feeling-low'
   | 'exhausted'
-  | 'thinking-of-you'
+  | 'overthinking'
+  | 'need-comfort'
   | 'need-encouragement'
-  | 'stay-with-me';
+  | 'lonely'
+  | 'anxiety-spike';
 
 export type Emotion = {
   id: EmotionId;
@@ -22,17 +26,8 @@ export type Emotion = {
 
 export const EMOTIONS: Emotion[] = [
   {
-    id: 'need-a-hug',
-    emoji: '🫂',
-    label: 'Need a Hug',
-    curated: [
-      'Consider yourself held. You don’t have to carry all of this alone.',
-      'Wrapping you in something gentle right now. You’re not alone in this moment.',
-    ],
-  },
-  {
     id: 'bad-day',
-    emoji: '🌧',
+    emoji: '😔',
     label: 'Bad Day',
     curated: [
       'Some days just weigh more. It’s okay to set it down for a moment.',
@@ -40,21 +35,12 @@ export const EMOTIONS: Emotion[] = [
     ],
   },
   {
-    id: 'lonely',
-    emoji: '😔',
-    label: 'Feeling Lonely',
+    id: 'feeling-low',
+    emoji: '🌧',
+    label: 'Feeling Low',
     curated: [
-      'Even in the quiet, you matter. Someone is glad you exist.',
-      'Loneliness is heavy, but it isn’t the whole truth about you.',
-    ],
-  },
-  {
-    id: 'overthinking',
-    emoji: '💭',
-    label: 'Overthinking',
-    curated: [
-      'Your mind is only trying to keep you safe. You can let it rest for now.',
-      'Not every thought needs an answer tonight. You’re allowed to pause.',
+      'It’s okay to feel low right now. You don’t have to lift yourself this second.',
+      'Low moments are still part of being human. You’re allowed to just be here.',
     ],
   },
   {
@@ -67,12 +53,21 @@ export const EMOTIONS: Emotion[] = [
     ],
   },
   {
-    id: 'thinking-of-you',
-    emoji: '❤️',
-    label: 'Thinking of You',
+    id: 'overthinking',
+    emoji: '💭',
+    label: 'Overthinking',
     curated: [
-      'You crossed someone’s mind for a good reason. You are remembered.',
-      'Someone, somewhere, is glad you’re here — including this quiet space.',
+      'Your mind is only trying to keep you safe. You can let it rest for now.',
+      'Not every thought needs an answer tonight. You’re allowed to pause.',
+    ],
+  },
+  {
+    id: 'need-comfort',
+    emoji: '🫂',
+    label: 'Need Comfort',
+    curated: [
+      'Consider yourself held. You don’t have to carry all of this alone.',
+      'Wrapping you in something gentle right now. You’re safe in this moment.',
     ],
   },
   {
@@ -85,12 +80,21 @@ export const EMOTIONS: Emotion[] = [
     ],
   },
   {
-    id: 'stay-with-me',
-    emoji: '🤝',
-    label: 'Stay With Me',
+    id: 'lonely',
+    emoji: '❤️',
+    label: 'Lonely',
     curated: [
-      'I’m right here. There’s no rush and nowhere else to be.',
-      'Staying with you in this moment. You don’t have to face it by yourself.',
+      'Even in the quiet, you matter. Someone is glad you exist.',
+      'Loneliness is heavy, but it isn’t the whole truth about you.',
+    ],
+  },
+  {
+    id: 'anxiety-spike',
+    emoji: '⚡',
+    label: 'Anxiety Spike',
+    curated: [
+      'This rush of anxiety is real, and it will pass. You are safe in this moment.',
+      'Your body is only trying to protect you. Nothing here needs solving right now.',
     ],
   },
 ];

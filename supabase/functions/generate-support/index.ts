@@ -28,16 +28,17 @@ Rules:
 - No emojis. No clinical language. No toxic positivity.
 - Sound like a kind person sitting quietly beside them, not a chatbot.`;
 
-// Server-side curated fallbacks, keyed by emotion id.
+// Server-side curated fallbacks, keyed by emotion id. Keep in sync with the
+// client catalog (src/emotions/catalog.ts).
 const CURATED: Record<string, string> = {
-  'need-a-hug': 'Consider yourself held. You don’t have to carry all of this alone.',
   'bad-day': 'Some days just weigh more. It’s okay to set it down for a moment.',
-  'lonely': 'Even in the quiet, you matter. Someone is glad you exist.',
-  'overthinking': 'Your mind is only trying to keep you safe. You can let it rest for now.',
+  'feeling-low': 'It’s okay to feel low right now. You don’t have to lift yourself this second.',
   'exhausted': 'You’ve been carrying so much. Resting isn’t giving up.',
-  'thinking-of-you': 'You crossed someone’s mind for a good reason. You are remembered.',
+  'overthinking': 'Your mind is only trying to keep you safe. You can let it rest for now.',
+  'need-comfort': 'Consider yourself held. You don’t have to carry all of this alone.',
   'need-encouragement': 'You’re growing, even when it’s slow. Small steps still move you forward.',
-  'stay-with-me': 'I’m right here. There’s no rush and nowhere else to be.',
+  'lonely': 'Even in the quiet, you matter. Someone is glad you exist.',
+  'anxiety-spike': 'This rush of anxiety is real, and it will pass. You are safe in this moment.',
 };
 
 function curatedFor(emotionId: string): string {
