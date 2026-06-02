@@ -64,7 +64,8 @@ export default function TermsScreen() {
         <H>Your check-ins are yours</H>
         <P>
           The emotions you log belong to you. We don’t claim them, sell them, or use them for anything
-          beyond showing them back to you. You can delete them anytime. See the Privacy page.
+          beyond showing them back to you. You can delete your account and check-ins anytime in
+          Settings, under Account.
         </P>
 
         <H>The app is offered “as is”</H>

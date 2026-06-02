@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { theme } from '../src/theme';
 
-// Where account-deletion requests are sent. Change this to your support inbox.
+// Support / questions inbox.
 const SUPPORT_EMAIL = 'zariffdanial1@gmail.com';
 
 function H({ children }: { children: ReactNode }) {
@@ -24,14 +24,6 @@ function Bullet({ children }: { children: ReactNode }) {
 
 export default function PrivacyScreen() {
   const router = useRouter();
-
-  const requestDeletion = () => {
-    const subject = encodeURIComponent('Silent Support account deletion request');
-    const body = encodeURIComponent(
-      'I would like to delete my Silent Support account and all of my check-ins.\n\nAccount email: ',
-    );
-    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`).catch(() => {});
-  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -115,13 +107,11 @@ export default function PrivacyScreen() {
           check-ins from your device.
         </Bullet>
         <Bullet>
-          <Text style={styles.strong}>Signed in:</Text> tap below and we’ll remove your account and
-          every check-in for good. We do this by hand, usually within a few days. (Signing out just
-          clears this device; your check-ins stay safe in your account.)
+          <Text style={styles.strong}>Signed in:</Text> go to Settings, then Account, and tap Delete
+          account. This permanently removes your account and every backed-up check-in right away, and
+          clears them from this device. It can’t be undone. (Signing out instead just clears this
+          device and keeps your check-ins safe in your account.)
         </Bullet>
-        <Pressable onPress={requestDeletion} hitSlop={8} style={styles.deleteButton}>
-          <Text style={styles.deleteButtonText}>Request deletion</Text>
-        </Pressable>
 
         <H>What we don’t do</H>
         <Bullet>We don’t sell or share your data with anyone.</Bullet>
@@ -143,8 +133,7 @@ export default function PrivacyScreen() {
 
         <H>Questions</H>
         <P>
-          If anything here is unclear, or you’d like your data deleted, email {SUPPORT_EMAIL} and
-          we’ll help.
+          If anything here is unclear, email {SUPPORT_EMAIL} and we’ll help.
         </P>
       </ScrollView>
     </SafeAreaView>
@@ -201,18 +190,4 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.family.sans,
   },
   strong: { color: theme.colors.inkPrimary },
-  deleteButton: {
-    alignSelf: 'flex-start',
-    marginTop: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.colors.surfaceHigh,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
-  deleteButtonText: {
-    color: theme.colors.accentWhisper,
-    fontSize: theme.typography.size.body,
-    fontFamily: theme.typography.family.sans,
-  },
 });

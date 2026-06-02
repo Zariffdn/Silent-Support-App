@@ -55,7 +55,7 @@ Sync (`src/lib/sync.ts`) is deliberately minimal — **no reconciliation engine,
 - **Per check-in when signed in** (`pushCheckIn`): best-effort append-only insert.
 - All writes (local and server) are fire-and-forget and **never throw** — comforting must not depend on storage or network.
 
-RLS: `emotion_logs` has owner-scoped select/insert/update/delete for `authenticated`; **no anon policies** (signed-out clients have zero access). Destructive scopes: sign-out clears only the device cache; "Clear history" is device-only when signed out and account-wide (server delete) when signed in. Deferred to a later phase: `profiles` table and account deletion (`delete-account` function). See `memory/product-direction.md`.
+RLS: `emotion_logs` has owner-scoped select/insert/update/delete for `authenticated`; **no anon policies** (signed-out clients have zero access). Destructive scopes: sign-out clears only the device cache; "Clear history" is device-only when signed out and account-wide (server delete) when signed in. Account deletion is implemented: **Settings → Account → Delete account** calls the `delete-account` Edge Function (Verify-JWT on; identifies the caller via `getUser`, then service-role `admin.deleteUser`), which cascades to `emotion_logs`; the client then clears local caches and signs out. Deferred to a later phase: the `profiles` table. See `memory/product-direction.md`.
 
 ### Insights are rule-based only
 
