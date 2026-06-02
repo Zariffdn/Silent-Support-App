@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, View, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { theme } from '../src/theme';
@@ -57,6 +57,16 @@ export default function SelectionScreen() {
             </View>
           ))}
         </View>
+
+        <Pressable
+          onPress={() => router.push('/history')}
+          disabled={chosen !== null}
+          hitSlop={12}
+          style={styles.lookBack}
+          accessibilityLabel="Look back at your history"
+        >
+          <Text style={styles.lookBackText}>Look back</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -95,5 +105,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 16,
+  },
+  lookBack: {
+    marginTop: 28,
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  lookBackText: {
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.body,
+    fontFamily: theme.typography.family.sans,
+    letterSpacing: 0.5,
   },
 });

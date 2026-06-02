@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '../src/theme';
 import { getEmotion, pickCurated } from '../src/emotions/catalog';
 import { insertEmotionLog, updateLogResponse } from '../src/lib/logEmotion';
+import { appendLocalLog } from '../src/lib/localHistory';
 import { fetchAiResponse } from '../src/lib/getSupportResponse';
 
 export default function ResponseScreen() {
@@ -35,6 +36,9 @@ export default function ResponseScreen() {
       // Log the emotion FIRST (with the curated text already on screen), then
       // ask the AI in the background.
       const logId = await insertEmotionLog(emotion.id, curated, 'curated');
+      // Mirror the check-in into private on-device history (powers the history
+      // screen without ever reading emotional data back over the network).
+      appendLocalLog({ id: logId, emotion: emotion.id, createdAt: new Date().toISOString() });
       const ai = await fetchAiResponse(emotion);
 
       if (ai && mounted) {
