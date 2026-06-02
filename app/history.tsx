@@ -93,10 +93,10 @@ export default function HistoryScreen() {
   const confirmClear = () => {
     const signedIn = !!userId;
     Alert.alert(
-      'Clear history?',
+      'Clear your history?',
       signedIn
-        ? 'This removes your check-ins from your account on all devices. It can’t be undone.'
-        : 'This removes your check-ins from this device. It can’t be undone.',
+        ? 'This removes every check-in from your account, on all your devices. We won’t be able to bring them back.'
+        : 'This removes the check-ins saved on this phone. We won’t be able to bring them back.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -138,7 +138,7 @@ export default function HistoryScreen() {
         {/* Backup nudge — only signed-out, only when there's something to protect */}
         {!loading && !userId && logs.length > 0 && (
           <View style={styles.banner}>
-            <Text style={styles.bannerText}>These live only on this device.</Text>
+            <Text style={styles.bannerText}>Your check-ins are saved only on this phone.</Text>
             <Pressable onPress={() => router.push('/sign-in')} hitSlop={8}>
               <Text style={styles.bannerAction}>Back up</Text>
             </Pressable>
@@ -153,11 +153,13 @@ export default function HistoryScreen() {
           </View>
         ) : isEmpty ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No check-ins on this device yet.</Text>
-            <Text style={styles.emptyHint}>When you tap how you feel, it will quietly appear here.</Text>
+            <Text style={styles.emptyText}>Nothing here yet.</Text>
+            <Text style={styles.emptyHint}>
+              Whenever you tap how you feel, it’ll quietly appear here — just for you.
+            </Text>
             {!userId && (
               <Pressable onPress={() => router.push('/sign-in')} hitSlop={10} style={styles.emptySignIn}>
-                <Text style={styles.signInLink}>Already have an account? Sign in to bring yours back.</Text>
+                <Text style={styles.signInLink}>Have an account? Sign in to bring your check-ins back.</Text>
               </Pressable>
             )}
           </View>

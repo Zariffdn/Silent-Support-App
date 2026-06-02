@@ -30,8 +30,8 @@ export default function HelpScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>You’re not alone</Text>
         <Text style={styles.intro}>
-          If you might be in danger or thinking about harming yourself, please reach out — you
-          deserve support right now. These lines are free and confidential.
+          If you’re carrying something heavy — or thinking about hurting yourself — you don’t have to
+          face it alone. These lines are free, confidential, and there for you, any time.
         </Text>
 
         {CRISIS_RESOURCES.map((r) => (
@@ -42,8 +42,8 @@ export default function HelpScreen() {
         <Card resource={INTERNATIONAL_DIRECTORY} onPress={() => open(INTERNATIONAL_DIRECTORY)} />
 
         <Text style={styles.footer}>
-          Silent Support offers comfort, not medical care. In an emergency, contact your local
-          emergency services.
+          Silent Support is here for comfort, not medical care. In an emergency, please contact your
+          local emergency services.
         </Text>
       </ScrollView>
     </SafeAreaView>

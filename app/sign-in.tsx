@@ -96,10 +96,10 @@ export default function SignInScreen() {
         >
         {phase === 'email' ? (
           <>
-            <Text style={styles.title}>Keep your check-ins safe</Text>
+            <Text style={styles.title}>Save your check-ins</Text>
             <Text style={styles.intro}>
-              Enter your email and we’ll send you a code — no password to remember. Use the same
-              email each time; a different email creates a separate account.
+              Add your email and we’ll send a code to sign in — no password needed. Use the same
+              email each time, so your check-ins stay together.
             </Text>
             <TextInput
               style={styles.input}
@@ -123,14 +123,14 @@ export default function SignInScreen() {
               </Text>
             </Pressable>
             <Text style={styles.note}>
-              We use your email only to sign you in. Only you can ever see your check-ins.
+              Your email is only used to sign you in. Your check-ins stay private to you.
             </Text>
           </>
         ) : (
           <>
             <Text style={styles.title}>Check your email</Text>
             <Text style={styles.intro}>
-              We sent a code to {email.trim().toLowerCase()}. Enter it below.
+              Enter the code we just sent to {email.trim().toLowerCase()}.
             </Text>
             <TextInput
               style={[styles.input, styles.codeInput]}

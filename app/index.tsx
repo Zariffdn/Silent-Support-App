@@ -76,6 +76,10 @@ export default function SelectionScreen() {
           <Pressable onPress={() => router.push('/privacy')} hitSlop={10} accessibilityLabel="Privacy">
             <Text style={styles.footerLink}>Privacy</Text>
           </Pressable>
+          <Text style={styles.footerDot}>·</Text>
+          <Pressable onPress={() => router.push('/terms')} hitSlop={10} accessibilityLabel="Terms">
+            <Text style={styles.footerLink}>Terms</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
