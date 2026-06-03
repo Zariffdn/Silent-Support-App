@@ -1,5 +1,6 @@
 import type { EmotionId, Strength } from '../../emotions/catalog';
 import type { LocalLog } from '../../lib/localHistory';
+import { POSITIVE } from './categories';
 
 // Emotion Memory: surface at most ONE soft, abstract acknowledgement that the app
 // has noticed a PATTERN — never what the feeling was about. Pure and local: the
@@ -20,9 +21,8 @@ const CONSISTENT_DAYS = 10;
 // Established-relationship gate: no memory until the app has a little history.
 const MIN_CHECKINS = 5;
 
-// Positive emotions: see catalog.ts. `eased` is suppressed for these — "this good
+// `eased` is suppressed for POSITIVE emotions (see ./categories) — "this good
 // feeling has shown up less" reads as quietly sad, the opposite of the intent.
-const POSITIVE: string[] = ['happy', 'grateful', 'calm', 'hopeful', 'proud', 'excited'];
 
 export type MemoryKind = 'eased' | 'returning' | 'consistent' | 'varied' | 'balanced';
 

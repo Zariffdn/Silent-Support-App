@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { EmotionId } from '../emotions/catalog';
+import { clearSupportPrompt } from '../features/safety/supportPrompt';
 
 // Emotion history is local-first. Signed-out check-ins live under the anon key;
 // signed-in check-ins live under a per-user key. The local store is always the
@@ -91,6 +92,8 @@ export async function clearLocalLogs(userId: string | null): Promise<void> {
   } catch {
     // ignore
   }
+  // The support-nudge cooldown is derived from history, so clear it too.
+  void clearSupportPrompt();
 }
 
 export async function getAnonLogs(): Promise<LocalLog[]> {
@@ -104,4 +107,5 @@ export async function clearAnonLogs(): Promise<void> {
   } catch {
     // ignore
   }
+  void clearSupportPrompt();
 }

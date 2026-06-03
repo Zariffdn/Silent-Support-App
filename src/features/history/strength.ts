@@ -1,11 +1,12 @@
 import type { EmotionId, Strength } from '../../emotions/catalog';
 import type { LocalLog } from '../../lib/localHistory';
+import { DIFFICULT, POSITIVE } from './categories';
 
 // Response Strength: derive how much depth a response should carry from recent
 // ON-DEVICE history only. No profiles, no text, no memory beyond the local log.
 // The level is never shown to the user — it only shapes the response's depth.
 //
-// Three emotion categories behave differently:
+// Three emotion categories behave differently (see ./categories):
 //   • difficult — the full L1→L2→L3 ladder; L3 is intentionally rare.
 //   • positive  — capped at L2 ("deep support" never fits joy); L2 only
 //                 celebrates that good moments are landing more often.
@@ -14,25 +15,6 @@ import type { LocalLog } from '../../lib/localHistory';
 
 const DAY = 86_400_000;
 const WINDOW_DAYS = 7;
-
-// Emotions that count toward an escalating, "difficult" trend. Reaching-out
-// emotions (need-comfort, need-encouragement) are intentionally excluded — they
-// are requests for warmth, not a distress pattern, so they never reach Level 3.
-const DIFFICULT: EmotionId[] = [
-  'bad-day',
-  'feeling-low',
-  'exhausted',
-  'lonely',
-  'anxiety-spike',
-  'overthinking',
-];
-
-// Positive emotions must NEVER reach Level 3 — "deep support" messaging reads as
-// distress and is wrong for joy. They use L1 (normal acknowledgement) and, when a
-// good feeling is recurring, L2 (celebration of consistency). These ids are not
-// in the catalog yet; the cap is enforced defensively (matched as plain strings)
-// so any positive emotion added later is correct from the first build.
-const POSITIVE: string[] = ['happy', 'grateful', 'calm', 'hopeful', 'proud', 'excited'];
 
 const dayKey = (iso: string) => new Date(iso).toDateString();
 

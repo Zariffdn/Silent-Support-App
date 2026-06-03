@@ -7,6 +7,12 @@ import { getEmotion, pickCurated, type Strength } from '../src/emotions/catalog'
 import { appendLocalLog, getCachedLogsSync } from '../src/lib/localHistory';
 import { computeStrength } from '../src/features/history/strength';
 import { deriveMemory, type MemorySignal } from '../src/features/history/memory';
+import { computeStrain } from '../src/features/safety/strain';
+import {
+  canShowSupport,
+  markSupportShown,
+  markSupportDismissed,
+} from '../src/features/safety/supportPrompt';
 import { pushCheckIn } from '../src/lib/sync';
 import { useSession } from '../src/features/auth/SessionProvider';
 import { fetchAiResponse } from '../src/lib/getSupportResponse';
@@ -25,6 +31,10 @@ export default function ResponseScreen() {
   // shown on-device only and never sent to the AI or server.
   const strengthRef = useRef<Strength | null>(null);
   const memoryRef = useRef<MemorySignal | null>(null);
+  // Soft crisis layer: whether persistent strain makes the support-resources
+  // nudge eligible. Computed locally and ephemerally; the frequency cap (async)
+  // decides whether it actually shows. Never alarming, never blocking.
+  const strainEligibleRef = useRef(false);
   if (emotion && strengthRef.current === null) {
     const now = Date.now();
     const recent = getCachedLogsSync(userId);
@@ -34,6 +44,7 @@ export default function ResponseScreen() {
     ];
     strengthRef.current = computeStrength(withCurrent, emotion.id, now);
     memoryRef.current = deriveMemory(withCurrent, emotion.id, strengthRef.current, now);
+    strainEligibleRef.current = computeStrain(withCurrent, now).eligible;
   }
 
   // Presence first: pick the curated response (at the chosen strength) once,
@@ -44,6 +55,7 @@ export default function ResponseScreen() {
   }
 
   const [text, setText] = useState<string | null>(curatedRef.current);
+  const [showSupport, setShowSupport] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -59,6 +71,16 @@ export default function ResponseScreen() {
       const log = await appendLocalLog(userId, emotion.id);
       // If signed in, also back it up to the account (append-only, best-effort).
       if (userId) void pushCheckIn(userId, log);
+
+      // Soft support nudge: if strain looks persistent AND the frequency cap
+      // allows it, quietly offer resources below the response. Non-core, so it
+      // may appear a beat after the response — never blocks, always dismissible.
+      if (strainEligibleRef.current && (await canShowSupport(Date.now()))) {
+        if (mounted) {
+          setShowSupport(true);
+          void markSupportShown(Date.now());
+        }
+      }
 
       // Ask the AI in the background, at the same strength; swap in if it's quick.
       const ai = await fetchAiResponse(emotion, strengthRef.current ?? 1);
@@ -81,6 +103,10 @@ export default function ResponseScreen() {
   }, [emotion, fade]);
 
   const close = () => router.replace('/');
+  const dismissSupport = () => {
+    setShowSupport(false);
+    void markSupportDismissed(Date.now());
+  };
 
   // Guard against a malformed/unknown emotion param.
   if (!emotion) {
@@ -121,6 +147,28 @@ export default function ResponseScreen() {
           </Pressable>
 
           <Text style={styles.hint}>Or tap anywhere when you’re ready</Text>
+
+          {showSupport && (
+            <View style={styles.support}>
+              <Text style={styles.supportText}>
+                If things have been feeling especially heavy lately, support resources are always
+                available.
+              </Text>
+              <View style={styles.supportActions}>
+                <Pressable
+                  onPress={() => router.push('/help')}
+                  accessibilityLabel="View support resources"
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.supportBtn, pressed && styles.supportBtnPressed]}
+                >
+                  <Text style={styles.supportBtnText}>View support resources</Text>
+                </Pressable>
+                <Pressable onPress={dismissSupport} accessibilityLabel="Dismiss" hitSlop={8}>
+                  <Text style={styles.supportDismiss}>Not now</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
         </Animated.View>
       </Pressable>
     </SafeAreaView>
@@ -197,5 +245,48 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.size.caption,
     fontFamily: theme.typography.family.sans,
     marginTop: 12,
+  },
+  // Soft support nudge — subordinate to the response, set off by a quiet divider.
+  // Warm, calm, dismissible; never alarming, never blocking.
+  support: {
+    marginTop: 24,
+    paddingTop: 22,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.surfaceHigh,
+    alignItems: 'center',
+    gap: 16,
+    maxWidth: 300,
+  },
+  supportText: {
+    color: theme.colors.inkSecondary,
+    fontSize: theme.typography.size.caption,
+    lineHeight: 20,
+    fontFamily: theme.typography.family.sans,
+    textAlign: 'center',
+  },
+  supportActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+  supportBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceHigh,
+  },
+  supportBtnPressed: {
+    backgroundColor: theme.colors.surface,
+  },
+  supportBtnText: {
+    color: theme.colors.accentWarm,
+    fontSize: theme.typography.size.body,
+    fontFamily: theme.typography.family.sans,
+  },
+  supportDismiss: {
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.caption,
+    fontFamily: theme.typography.family.sans,
   },
 });
