@@ -1,13 +1,20 @@
 // Silent Support — "generate-support" Edge Function (Deno).
 //
-//   Request:  { emotionId: string, label?: string, note?: string }
+//   Request:  { emotionId: string, strength?: 1 | 2 | 3, note?: string }
 //   Response: { text: string, source: "ai" | "curated" | "safety" }
 //
-// Response Engine V2: the AI returns a FOUR-LAYER structured presence
-//   1. grounding   2. recognition   3. reframing   4. gentle guidance + soft close
-// with layers separated by a blank line. Tone is tuned per emotion. The output
-// is sanitized/validated (no emojis, no exclamation marks, no questions, no
-// clichés) and falls back to curated on any violation.
+// Response Engine V2: the AI returns a structured presence built from up to FOUR
+// parts (1. grounding  2. recognition  3. reframing  4. gentle guidance + soft
+// close), layers separated by a blank line. Tone is tuned per emotion.
+//
+// Response Strength (Day 11A Phase 2): `strength` is a coarse depth level (1|2|3)
+// derived ON-DEVICE from the user's recent history. The server receives ONLY this
+// integer and the emotion id — never history, counts, streaks, frequencies, or any
+// other signal. The level selects how many parts the AI writes (1 = brief grounding
+// + close, do not assume distress; 2 = + gentle recognition of recurrence; 3 = full
+// four-part, warmest). Absent → 3 (back-compat with the pre-Phase-2 behaviour). The
+// output is sanitized/validated (no emojis, exclamation marks, questions, clichés)
+// and falls back to curated on any violation.
 
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
 const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'llama-3.3-70b-versatile';
@@ -88,29 +95,34 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-// ---- Prompt (V2 four-layer) -------------------------------------------------
+// ---- Prompt (V2 four-layer, depth-aware) ------------------------------------
 
-const SYSTEM_PROMPT = `You are the quiet presence inside "Silent Support," for someone who just tapped a single emotion. Write ONE response made of FOUR short parts, each separated by a blank line, in this exact order:
+const SYSTEM_PROMPT = `You are the quiet presence inside "Silent Support," for someone who just tapped a single emotion. Build ONE response from up to four parts, each separated by a blank line, in this order:
 
 1. Grounding: one or two short lines offering instant calm and safety. No explanation yet.
 2. Recognition: one short paragraph that gently names and validates the feeling. No advice, no diagnosis.
 3. Reframing: one short paragraph that softly shifts perspective. No commands, no pressure.
 4. Gentle guidance and close: one to three short lines offering a small, optional next step, ending with a soft closing line such as "Stay here for a moment.", "Take this slowly.", "You don’t need to rush anything right now.", or "Let this be enough for now."
 
+You will be given a Depth of 1, 2, or 3. Write only:
+- Depth 1: parts 1 and 4 only — short and light, just grounding and a soft close. Do NOT assume distress; this may be a passing or first-in-a-while feeling. Two short lines at most.
+- Depth 2: parts 1, 2, and 4. In part 2, gently acknowledge that this feeling has been around lately — a warm, supportive presence, moderate depth. Skip part 3.
+- Depth 3: all four parts, the fullest and warmest version. Still calm and non-clinical, never diagnostic.
+
 Apply the tone tuning provided in the user message.
 
 Strict style rules:
 - Calm, warm, and human. Write in gentle, complete sentences — never clipped or comma-spliced fragments. Sentences may be short, but each should feel whole and settled. No part longer than a few lines.
 - No emojis. No exclamation marks. No questions of any kind.
-- No clinical or diagnostic words, no therapy claims, no advice that reads like an instruction.
+- No clinical or diagnostic words, no therapy claims, no advice that reads like an instruction. Never name a cause, never assess or label a mental state.
 - You may use AT MOST ONE of these brief phrases, only if it fits naturally: "I hear you.", "That makes sense.", "That’s a lot to carry.", "You don’t have to hold all of this alone.", "It’s okay to feel this."
-- Output ONLY the four parts separated by blank lines. No labels, no numbers, no preamble, no notes about the format.`;
+- Output ONLY the parts for the given Depth, separated by blank lines. No labels, no numbers, no preamble, no notes about the format.`;
 
 const FEWSHOT: { role: 'user' | 'assistant'; content: string }[] = [
   {
     role: 'user',
     content:
-      'The person is feeling: "Overthinking". Tone tuning: Overwhelm. Minimal wording, one moment at a time.',
+      'The person is feeling: "Overthinking". Tone tuning: Overwhelm. Minimal wording, one moment at a time. Depth: 3.',
   },
   {
     role: 'assistant',
@@ -120,7 +132,7 @@ const FEWSHOT: { role: 'user' | 'assistant'; content: string }[] = [
   {
     role: 'user',
     content:
-      'The person is feeling: "Anxiety Spike". Tone tuning: Anxiety. Short sentences, grounding words, less abstraction.',
+      'The person is feeling: "Anxiety Spike". Tone tuning: Anxiety. Short sentences, grounding words, less abstraction. Depth: 3.',
   },
   {
     role: 'assistant',
@@ -157,12 +169,12 @@ function sanitizeAi(raw: string | null): string | null {
   return t;
 }
 
-async function askGroq(emotionId: string): Promise<string | null> {
+async function askGroq(emotionId: string, strength: number): Promise<string | null> {
   if (!GROQ_API_KEY) return null;
   const label = LABELS[emotionId];
   const guidance = EMOTION_GUIDANCE[emotionId];
   if (!label || !guidance) return null; // unknown emotion id → no AI call
-  const userContent = `The person is feeling: "${label}". Tone tuning: ${guidance}`;
+  const userContent = `The person is feeling: "${label}". Tone tuning: ${guidance}. Depth: ${strength}.`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
@@ -200,12 +212,18 @@ Deno.serve(async (req) => {
 
   let emotionId = '';
   let note = '';
+  // Coarse response depth (1|2|3) derived on-device from recent history. Only the
+  // integer reaches us — never history, counts, streaks, frequencies, or identity.
+  // Default 3 keeps older clients (no `strength` field) on the full four-part reply.
+  let strength = 3;
   try {
     const body = await req.json();
     emotionId = String(body?.emotionId ?? '');
     // `note` is the only free text accepted, used ONLY for crisis detection —
     // it is never sent to the model.
     note = String(body?.note ?? '').slice(0, 500);
+    const s = Number(body?.strength);
+    if (s === 1 || s === 2 || s === 3) strength = s;
   } catch (_err) {
     // malformed body — still respond with comfort
   }
@@ -215,8 +233,9 @@ Deno.serve(async (req) => {
     return json({ text: SAFETY_RESPONSE, source: 'safety' });
   }
 
-  // 2. AI — four-layer, validated. Prompt built server-side from the emotion id.
-  const aiText = sanitizeAi(await askGroq(emotionId));
+  // 2. AI — depth-aware, validated. Prompt built server-side from the emotion id
+  //    and the coarse strength level only.
+  const aiText = sanitizeAi(await askGroq(emotionId, strength));
   if (aiText) return json({ text: aiText, source: 'ai' });
 
   // 3. Curated fallback.
