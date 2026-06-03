@@ -1,20 +1,14 @@
 // Silent Support — "generate-support" Edge Function (Deno).
 //
-//   Request:  { emotionId: string, label: string, note?: string }
+//   Request:  { emotionId: string, label?: string, note?: string }
 //   Response: { text: string, source: "ai" | "curated" | "safety" }
 //
-// Three layers, evaluated in order:
-//   1. Safety pre-check — crisis keywords route to a fixed safety response and
-//      skip the AI entirely. (Placeholder hook: the app sends no free text
-//      today, so `note` is normally absent; this activates the moment any text
-//      input — e.g. optional journaling — is added. Mirror of
-//      src/features/safety/crisis.ts — keep the two in sync.)
-//   2. AI — Groq (OpenAI-compatible API) with a tightly constrained prompt +
-//      per-emotion guidance, then the output is sanitized/validated for tone.
-//   3. Curated fallback — if no key, the AI fails, or validation rejects it.
+// Response Engine V2: the AI returns a FOUR-LAYER structured presence
+//   1. grounding   2. recognition   3. reframing   4. gentle guidance + soft close
+// with layers separated by a blank line. Tone is tuned per emotion. The output
+// is sanitized/validated (no emojis, no exclamation marks, no questions, no
+// clichés) and falls back to curated on any violation.
 
-// Groq is OpenAI-compatible, free, and fast (responses usually well under the
-// client's 2.5s swap window). Set GROQ_API_KEY as a Supabase function secret.
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
 const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'llama-3.3-70b-versatile';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -36,8 +30,6 @@ const CRISIS_PATTERNS = [
   'ending it all',
 ];
 
-// NOTE: localize this for your region before launch (add a specific crisis
-// line / number). Kept generic so it is never region-wrong.
 const SAFETY_RESPONSE =
   'What you’re feeling sounds really heavy, and you don’t have to carry it alone. ' +
   'If you might be in danger or thinking of harming yourself, please reach out right now ' +
@@ -48,23 +40,8 @@ function detectCrisis(text: string): boolean {
   return CRISIS_PATTERNS.some((p) => t.includes(p));
 }
 
-// ---- Standardized emotion → AI guidance -------------------------------------
+// ---- Emotion → label + tone tuning (V2) -------------------------------------
 
-const EMOTION_GUIDANCE: Record<string, string> = {
-  'bad-day': 'They had a hard day. Acknowledge the weight without minimizing it.',
-  'feeling-low': 'They feel low and flat. Meet them gently; do not try to lift them.',
-  'exhausted': 'They are emotionally drained. Reassure them that rest is allowed.',
-  'overthinking': 'Their mind will not slow down. Offer permission to pause, not solutions.',
-  'need-comfort': 'They want to feel held. Offer warmth and quiet presence.',
-  'need-encouragement': 'They want gentle encouragement. Be grounded, never cheerleading.',
-  'lonely': 'They feel alone. Softly remind them they matter, without clichés.',
-  'anxiety-spike': 'They feel a surge of anxiety. Emphasize safety and that it will pass.',
-};
-
-// The emotion label is derived HERE (server-side), keyed by id — never taken
-// from the client. This is the core abuse protection: a crafted `label` can't
-// reach the model, so the endpoint can't be used as a free LLM proxy. An
-// unknown id simply yields no AI call. Mirror of client catalog labels.
 const LABELS: Record<string, string> = {
   'bad-day': 'Bad Day',
   'feeling-low': 'Feeling Low',
@@ -76,21 +53,32 @@ const LABELS: Record<string, string> = {
   'anxiety-spike': 'Anxiety Spike',
 };
 
-// ---- Curated fallback (mirror of client catalog) ----------------------------
+const EMOTION_GUIDANCE: Record<string, string> = {
+  'bad-day': 'They had a hard day. Soft pacing, lots of validation, few instructions. Treat it as heavy weather passing.',
+  'feeling-low': 'Sadness. Soften the pace, validate more, instruct less. Meet them where they are.',
+  'exhausted': 'Overwhelm. Reduce cognitive load, keep wording minimal, one moment at a time. Rest is allowed.',
+  'overthinking': 'Overwhelm. Minimal wording, reduce abstraction, one moment at a time. Permission to pause, not solutions.',
+  'need-comfort': 'They want to feel held. Warmth and presence, gentle validation, no pressure.',
+  'need-encouragement': 'They want quiet encouragement. Grounded and gentle, never cheerleading.',
+  'lonely': 'Sadness. Soft, validating, present. Remind them they matter, without clichés.',
+  'anxiety-spike': 'Anxiety. Short sentences. Grounding words (right now, safe, slow). Less abstraction. The wave will pass.',
+};
+
+// ---- Curated fallback (server-side last resort; client shows its own) --------
 
 const CURATED: Record<string, string> = {
-  'bad-day': 'Some days just weigh more. It’s okay to set it down for a moment.',
-  'feeling-low': 'It’s okay to feel low right now. You don’t have to lift yourself this second.',
-  'exhausted': 'You’ve been carrying so much. Resting isn’t giving up.',
-  'overthinking': 'Your mind is only trying to keep you safe. You can let it rest for now.',
-  'need-comfort': 'Consider yourself held. You don’t have to carry all of this alone.',
-  'need-encouragement': 'You’re growing, even when it’s slow. Small steps still move you forward.',
-  'lonely': 'Even in the quiet, you matter. Someone is glad you exist.',
-  'anxiety-spike': 'This rush of anxiety is real, and it will pass. You are safe in this moment.',
+  'bad-day': 'You’re here, and that’s enough for now. Some days just weigh more. Let this be enough for now.',
+  'feeling-low': 'You don’t have to lift yourself right now. It’s okay to feel low. Take this slowly.',
+  'exhausted': 'Rest here a moment. You’ve been carrying a lot, and resting isn’t giving up. Take this slowly.',
+  'overthinking': 'Let’s slow down for a moment. Not every thought needs an answer tonight. Stay here for a moment.',
+  'need-comfort': 'You’re not alone in this. Consider yourself held here. Stay here for a moment.',
+  'need-encouragement': 'You’re still here, still trying, and that counts. The next small step is enough. Take this slowly.',
+  'lonely': 'You’re not as alone as this feels. You matter, even in the quiet. Stay here for a moment.',
+  'anxiety-spike': 'You’re safe right now. This is a wave, and it will ease. One slow breath. Stay here for a moment.',
 };
 
 function curatedFor(emotionId: string): string {
-  return CURATED[emotionId] ?? 'I’m here with you. You don’t have to explain anything.';
+  return CURATED[emotionId] ?? 'I’m here with you. You don’t have to explain anything. Stay here for a moment.';
 }
 
 function json(body: unknown, status = 200): Response {
@@ -100,42 +88,34 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-// ---- Prompt -----------------------------------------------------------------
+// ---- Prompt (V2 four-layer) -------------------------------------------------
 
-const SYSTEM_PROMPT = `You are the quiet presence inside "Silent Support," an app for people too emotionally exhausted to explain how they feel. Someone has tapped a single emotion. Reply with ONE or TWO short sentences (under 200 characters total) that simply let them feel seen.
+const SYSTEM_PROMPT = `You are the quiet presence inside "Silent Support," for someone who just tapped a single emotion. Write ONE response made of FOUR short parts, each separated by a blank line, in this exact order:
 
-Always:
-- Validate the feeling first.
-- Stay calm, warm, and plain-spoken.
+1. Grounding: one or two short lines offering instant calm and safety. No explanation yet.
+2. Recognition: one short paragraph that gently names and validates the feeling. No advice, no diagnosis.
+3. Reframing: one short paragraph that softly shifts perspective. No commands, no pressure.
+4. Gentle guidance and close: one to three short lines offering a small, optional next step, ending with a soft closing line such as "Stay here for a moment.", "Take this slowly.", "You don’t need to rush anything right now.", or "Let this be enough for now."
 
-Never:
-- Give advice, fixes, steps, or ANY questions.
-- Use emojis, hashtags, or the person's name.
-- Use clinical or diagnostic words.
-- Use motivational-poster language or toxic positivity ("everything happens for a reason", "stay strong", "good vibes", "look on the bright side").
-- Write more than two sentences.
+Apply the tone tuning provided in the user message.
 
-Sound like a kind person sitting beside them in the dark — steady, brief, unhurried.`;
+Strict style rules:
+- Calm, warm, human. Short sentences. No part longer than a few lines.
+- No emojis. No exclamation marks. No questions of any kind.
+- No clinical or diagnostic words, no therapy claims, no advice that reads like an instruction.
+- You may use AT MOST ONE of these brief phrases, only if it fits naturally: "I hear you.", "That makes sense.", "That’s a lot to carry.", "You don’t have to hold all of this alone.", "It’s okay to feel this."
+- Output ONLY the four parts separated by blank lines. No labels, no numbers, no preamble, no notes about the format.`;
 
 const FEWSHOT: { role: 'user' | 'assistant'; content: string }[] = [
   {
     role: 'user',
     content:
-      'The person is feeling: "Overthinking". Their mind will not slow down. Offer permission to pause, not solutions.',
+      'The person is feeling: "Overthinking". Tone tuning: Overwhelm. Minimal wording, one moment at a time.',
   },
   {
     role: 'assistant',
     content:
-      'Your mind is working hard to keep you safe. You’re allowed to set it down for a little while.',
-  },
-  {
-    role: 'user',
-    content:
-      'The person is feeling: "Bad Day". They had a hard day. Acknowledge the weight without minimizing it.',
-  },
-  {
-    role: 'assistant',
-    content: 'Some days just weigh more than others. You don’t have to carry this one gracefully.',
+      'Let’s slow down, just for a moment.\n\nYour mind is moving fast, turning the same things over. That’s a lot to hold.\n\nA racing mind is often trying to solve something that can’t be solved tonight.\n\nYou don’t have to answer it all right now. Stay here for a moment.',
   },
 ];
 
@@ -149,29 +129,30 @@ const BANNED = [
 
 const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{FE0F}]/gu;
 
-/** Enforce the tone contract on the model's output. Returns clean text, or null
- * if it violates a rule (caller then falls back to curated). */
+/** Enforce the V2 tone contract; preserves the blank-line layer breaks. */
 function sanitizeAi(raw: string | null): string | null {
   if (!raw) return null;
-  let t = raw.replace(EMOJI, '').replace(/\s+/g, ' ').trim();
+  let t = raw
+    .replace(EMOJI, '')
+    .replace(/[ \t]+/g, ' ') // collapse spaces, keep newlines
+    .replace(/ *\n */g, '\n') // trim around newlines
+    .replace(/\n{3,}/g, '\n\n') // at most one blank line between layers
+    .trim();
   if (!t) return null;
   if (t.includes('?')) return null; // no questions
+  if (t.includes('!')) return null; // no exclamation marks
   const lower = t.toLowerCase();
   if (BANNED.some((p) => lower.includes(p))) return null;
-  // Keep at most two sentences.
-  const parts = t.split(/(?<=[.!?])\s+/).filter(Boolean);
-  t = parts.slice(0, 2).join(' ').trim();
-  if (t.length < 3 || t.length > 240) return null;
+  if (t.length < 10 || t.length > 800) return null;
   return t;
 }
 
 async function askGroq(emotionId: string): Promise<string | null> {
   if (!GROQ_API_KEY) return null;
-  // Build the prompt entirely from server-side maps — never client free text.
   const label = LABELS[emotionId];
   const guidance = EMOTION_GUIDANCE[emotionId];
   if (!label || !guidance) return null; // unknown emotion id → no AI call
-  const userContent = `The person is feeling: "${label}". ${guidance}`;
+  const userContent = `The person is feeling: "${label}". Tone tuning: ${guidance}`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
@@ -181,8 +162,8 @@ async function askGroq(emotionId: string): Promise<string | null> {
       headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: GROQ_MODEL,
-        temperature: 0.6,
-        max_tokens: 70,
+        temperature: 0.7,
+        max_tokens: 220,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...FEWSHOT,
@@ -212,19 +193,19 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     emotionId = String(body?.emotionId ?? '');
-    // `note` is the only free text accepted, and it is used ONLY for crisis
-    // detection — it is never sent to the model. (Client `label` is ignored.)
+    // `note` is the only free text accepted, used ONLY for crisis detection —
+    // it is never sent to the model.
     note = String(body?.note ?? '').slice(0, 500);
   } catch (_err) {
     // malformed body — still respond with comfort
   }
 
-  // 1. Safety pre-check (fires only when free text is provided).
+  // 1. Safety pre-check.
   if (note && detectCrisis(note)) {
     return json({ text: SAFETY_RESPONSE, source: 'safety' });
   }
 
-  // 2. AI, validated.
+  // 2. AI — four-layer, validated. Prompt built server-side from the emotion id.
   const aiText = sanitizeAi(await askGroq(emotionId));
   if (aiText) return json({ text: aiText, source: 'ai' });
 

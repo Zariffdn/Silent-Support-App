@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, Text, StyleSheet } from 'react-native';
+import { Animated, Pressable, Text, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '../src/theme';
@@ -79,7 +79,13 @@ export default function ResponseScreen() {
           <Text style={styles.echo}>
             {emotion.emoji}  {emotion.label}
           </Text>
-          <Text style={styles.response}>{text}</Text>
+          <View style={styles.layers}>
+            {(text ?? '').split(/\n{2,}/).map((layer, i) => (
+              <Text key={i} style={styles.layer}>
+                {layer.trim()}
+              </Text>
+            ))}
+          </View>
 
           <Pressable
             onPress={() => router.push('/comfort')}
@@ -110,13 +116,26 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    gap: 28,
+    gap: 22,
   },
   echo: {
     color: theme.colors.inkTertiary,
     fontSize: theme.typography.size.body,
     fontFamily: theme.typography.family.sans,
   },
+  // The four layers, spaced so reading downward feels like the response deepening.
+  layers: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  layer: {
+    color: theme.colors.inkPrimary,
+    fontSize: theme.typography.size.ui,
+    lineHeight: 26,
+    fontFamily: theme.typography.family.serif,
+    textAlign: 'center',
+  },
+  // Used by the malformed-emotion fallback only.
   response: {
     color: theme.colors.inkPrimary,
     fontSize: theme.typography.size.response,
