@@ -6,6 +6,7 @@ import { theme } from '../src/theme';
 import { getEmotion, pickCurated, type Strength } from '../src/emotions/catalog';
 import { appendLocalLog, getCachedLogsSync } from '../src/lib/localHistory';
 import { computeStrength } from '../src/features/history/strength';
+import { deriveMemory, type MemorySignal } from '../src/features/history/memory';
 import { pushCheckIn } from '../src/lib/sync';
 import { useSession } from '../src/features/auth/SessionProvider';
 import { fetchAiResponse } from '../src/lib/getSupportResponse';
@@ -19,14 +20,20 @@ export default function ResponseScreen() {
   // Response strength, computed once synchronously from recent on-device history
   // (the current check-in counted as +1). Never shown to the user — it only
   // shapes how much depth the response carries.
+  // A single soft memory aside (or none) is derived from the same recent history,
+  // acknowledging an abstract PATTERN — never what the feeling was about. It is
+  // shown on-device only and never sent to the AI or server.
   const strengthRef = useRef<Strength | null>(null);
+  const memoryRef = useRef<MemorySignal | null>(null);
   if (emotion && strengthRef.current === null) {
+    const now = Date.now();
     const recent = getCachedLogsSync(userId);
     const withCurrent = [
       ...recent,
-      { id: '_current', emotion: emotion.id, createdAt: new Date().toISOString() },
+      { id: '_current', emotion: emotion.id, createdAt: new Date(now).toISOString() },
     ];
-    strengthRef.current = computeStrength(withCurrent, emotion.id, Date.now());
+    strengthRef.current = computeStrength(withCurrent, emotion.id, now);
+    memoryRef.current = deriveMemory(withCurrent, emotion.id, strengthRef.current, now);
   }
 
   // Presence first: pick the curated response (at the chosen strength) once,
@@ -90,6 +97,9 @@ export default function ResponseScreen() {
     <SafeAreaView style={styles.safe}>
       <Pressable style={styles.center} onPress={close} accessibilityLabel="Close">
         <Animated.View style={[styles.content, { opacity: fade }]}>
+          {memoryRef.current && (
+            <Text style={styles.memory}>{memoryRef.current.phrase}</Text>
+          )}
           <Text style={styles.echo}>
             {emotion.emoji}  {emotion.label}
           </Text>
@@ -136,6 +146,15 @@ const styles = StyleSheet.create({
     color: theme.colors.inkTertiary,
     fontSize: theme.typography.size.body,
     fontFamily: theme.typography.family.sans,
+  },
+  // The memory whisper — the app's quiet aside, dimmer than the curated layers
+  // and visually distinct from them, so it reads as noticing, not as the message.
+  memory: {
+    color: theme.colors.inkTertiary,
+    fontSize: theme.typography.size.caption,
+    fontFamily: theme.typography.family.sans,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   // The four layers, spaced so reading downward feels like the response deepening.
   layers: {
