@@ -1,5 +1,5 @@
 import { env } from './env';
-import type { Emotion } from '../emotions/catalog';
+import type { Emotion, Strength } from '../emotions/catalog';
 
 /**
  * How long we'll let the AI try before we stop caring. The curated response is
@@ -16,7 +16,7 @@ const FUNCTION_URL = `${env.supabaseUrl}/functions/v1/generate-support`;
  * genuine AI response arrives within the swap window; otherwise null. Never
  * throws — any failure just means the curated response stays.
  */
-export async function fetchAiResponse(emotion: Emotion): Promise<string | null> {
+export async function fetchAiResponse(emotion: Emotion, strength: Strength): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_SWAP_WINDOW_MS);
 
@@ -28,7 +28,9 @@ export async function fetchAiResponse(emotion: Emotion): Promise<string | null> 
         Authorization: `Bearer ${env.supabaseAnonKey}`,
         apikey: env.supabaseAnonKey,
       },
-      body: JSON.stringify({ emotionId: emotion.id, label: emotion.label }),
+      // `strength` is a coarse 1|2|3 derived on-device from recent history — no
+      // history, counts, or identity are sent, just the depth level.
+      body: JSON.stringify({ emotionId: emotion.id, strength }),
       signal: controller.signal,
     });
 

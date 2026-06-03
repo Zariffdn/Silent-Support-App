@@ -3,8 +3,9 @@ import { Animated, Pressable, Text, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '../src/theme';
-import { getEmotion, pickCurated } from '../src/emotions/catalog';
-import { appendLocalLog } from '../src/lib/localHistory';
+import { getEmotion, pickCurated, type Strength } from '../src/emotions/catalog';
+import { appendLocalLog, getCachedLogsSync } from '../src/lib/localHistory';
+import { computeStrength } from '../src/features/history/strength';
 import { pushCheckIn } from '../src/lib/sync';
 import { useSession } from '../src/features/auth/SessionProvider';
 import { fetchAiResponse } from '../src/lib/getSupportResponse';
@@ -15,11 +16,24 @@ export default function ResponseScreen() {
   const { emotion: emotionId } = useLocalSearchParams<{ emotion: string }>();
   const emotion = getEmotion(emotionId);
 
-  // Presence first: pick the curated response once, synchronously, so it is on
-  // screen from the very first frame (0ms) — no spinner, no waiting.
+  // Response strength, computed once synchronously from recent on-device history
+  // (the current check-in counted as +1). Never shown to the user — it only
+  // shapes how much depth the response carries.
+  const strengthRef = useRef<Strength | null>(null);
+  if (emotion && strengthRef.current === null) {
+    const recent = getCachedLogsSync(userId);
+    const withCurrent = [
+      ...recent,
+      { id: '_current', emotion: emotion.id, createdAt: new Date().toISOString() },
+    ];
+    strengthRef.current = computeStrength(withCurrent, emotion.id, Date.now());
+  }
+
+  // Presence first: pick the curated response (at the chosen strength) once,
+  // synchronously, so it is on screen from the very first frame (0ms).
   const curatedRef = useRef<string | null>(null);
   if (emotion && curatedRef.current === null) {
-    curatedRef.current = pickCurated(emotion);
+    curatedRef.current = pickCurated(emotion, strengthRef.current ?? 1);
   }
 
   const [text, setText] = useState<string | null>(curatedRef.current);
@@ -39,8 +53,8 @@ export default function ResponseScreen() {
       // If signed in, also back it up to the account (append-only, best-effort).
       if (userId) void pushCheckIn(userId, log);
 
-      // Ask the AI in the background; swap in only if it returns quickly.
-      const ai = await fetchAiResponse(emotion);
+      // Ask the AI in the background, at the same strength; swap in if it's quick.
+      const ai = await fetchAiResponse(emotion, strengthRef.current ?? 1);
       if (ai && mounted) {
         // Soft crossfade swap — the AI quietly deepens the response, no jolt.
         Animated.timing(fade, { toValue: 0, duration: 400, useNativeDriver: true }).start(
