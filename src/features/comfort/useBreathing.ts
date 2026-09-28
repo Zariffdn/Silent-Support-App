@@ -21,7 +21,11 @@ export const BREATH_PATTERN: BreathPhase[] = [
  * advanced by the SAME step runner, so the word the user reads always matches
  * the movement they see. The animation runs on the native thread.
  */
-export function useBreathing() {
+/**
+ * @param startDelayMs A settle beat before the first inhale, so the room can
+ * arrive still before it starts to breathe.
+ */
+export function useBreathing(startDelayMs = 0) {
   const scale = useRef(new Animated.Value(0)).current; // begin fully exhaled
   const [index, setIndex] = useState(0);
 
@@ -53,12 +57,13 @@ export function useBreathing() {
       });
     };
 
-    run();
+    const start = setTimeout(run, startDelayMs);
     return () => {
       mounted = false;
+      clearTimeout(start);
       animation?.stop();
     };
-  }, [scale]);
+  }, [scale, startDelayMs]);
 
   return { scale, phase: BREATH_PATTERN[index] };
 }

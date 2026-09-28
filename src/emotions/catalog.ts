@@ -10,7 +10,8 @@
 // Tone is tuned per emotion. No emojis, exclamation marks, questions, or clinical
 // language. Layers are separated by a blank line (\n\n).
 //
-// Source of truth, mirrors the README. Adding/renaming an emotion also means
+// Source of truth, mirrors the README. Labels are display text in sentence case;
+// the ids are what is stored and sent. Adding/renaming an emotion also means
 // updating the Edge Function's LABELS / EMOTION_GUIDANCE / CURATED maps.
 
 export type EmotionId =
@@ -34,7 +35,6 @@ export type CuratedByLevel = {
 
 export type Emotion = {
   id: EmotionId;
-  emoji: string;
   label: string;
   curated: CuratedByLevel;
 };
@@ -42,8 +42,7 @@ export type Emotion = {
 export const EMOTIONS: Emotion[] = [
   {
     id: 'bad-day',
-    emoji: '😔',
-    label: 'Bad Day',
+    label: 'Bad day',
     curated: {
       gentle: [
         'It’s okay that today felt off. You don’t have to carry it into the next moment.',
@@ -61,8 +60,7 @@ export const EMOTIONS: Emotion[] = [
   },
   {
     id: 'feeling-low',
-    emoji: '🌧',
-    label: 'Feeling Low',
+    label: 'Feeling low',
     curated: {
       gentle: [
         'It’s okay to feel a little low right now. You don’t have to lift it on your own.',
@@ -80,8 +78,7 @@ export const EMOTIONS: Emotion[] = [
   },
   {
     id: 'exhausted',
-    emoji: '😴',
-    label: 'Emotionally Exhausted',
+    label: 'Exhausted',
     curated: {
       gentle: [
         'It sounds like you could use a little rest. Let yourself have it.',
@@ -99,7 +96,6 @@ export const EMOTIONS: Emotion[] = [
   },
   {
     id: 'overthinking',
-    emoji: '💭',
     label: 'Overthinking',
     curated: {
       gentle: [
@@ -118,8 +114,7 @@ export const EMOTIONS: Emotion[] = [
   },
   {
     id: 'need-comfort',
-    emoji: '🫂',
-    label: 'Need Comfort',
+    label: 'Need comfort',
     curated: {
       gentle: [
         'It’s okay to want a little comfort. Consider yourself gently held.',
@@ -137,8 +132,7 @@ export const EMOTIONS: Emotion[] = [
   },
   {
     id: 'need-encouragement',
-    emoji: '🌱',
-    label: 'Need Encouragement',
+    label: 'Need encouragement',
     curated: {
       gentle: [
         'A small bit of encouragement is okay to want. You’re doing more than you think.',
@@ -156,7 +150,6 @@ export const EMOTIONS: Emotion[] = [
   },
   {
     id: 'lonely',
-    emoji: '❤️',
     label: 'Lonely',
     curated: {
       gentle: [
@@ -175,8 +168,7 @@ export const EMOTIONS: Emotion[] = [
   },
   {
     id: 'anxiety-spike',
-    emoji: '⚡',
-    label: 'Anxiety Spike',
+    label: 'Anxiety spike',
     curated: {
       gentle: [
         'You’re safe right now. This feeling can pass without you forcing it.',

@@ -22,14 +22,16 @@ One tap is enough.
 
 You select how you feel:
 
-- 😔 Bad Day
-- 🌧 Feeling Low
-- 😴 Emotionally Exhausted
-- 💭 Overthinking
-- 🫂 Need Comfort
-- 🌱 Need Encouragement
-- ❤️ Lonely
-- ⚡ Anxiety Spike
+- Bad day
+- Feeling low
+- Exhausted
+- Overthinking
+- Need comfort
+- Need encouragement
+- Lonely
+- Anxiety spike
+
+Eight words, no icons: each rests in a soft pool of light that gathers under your finger.
 
 The app responds with:
 
@@ -95,7 +97,7 @@ Just a steady presence.
 
 A dedicated calm screen with:
 
-- Breathing animation (inhale · hold · exhale)
+- A breathing light (inhale · hold · exhale): the room itself breathes, no orb, no disc
 - Grounding prompts
 - Optional ambient sound
 - Silence mode (one tap strips everything away but the breath)
@@ -107,11 +109,10 @@ A dedicated calm screen with:
 
 A soft, private record of how you’ve felt:
 
-- What you felt and when
-- A gentle “lately” summary and light, rule-based reflections
-- Filter by feeling
+- What you felt and roughly when (morning, evening, late night)
+- At most two light, rule-based reflections, written as sentences
 
-This is an emotional mirror, **not** a health tracker — no charts, scores, diagnoses, or labels.
+This is an emotional mirror, **not** a health tracker — no charts, counts, filters, scores, diagnoses, or labels.
 
 ---
 
@@ -119,7 +120,7 @@ This is an emotional mirror, **not** a health tracker — no charts, scores, dia
 
 Privacy is the product, not a setting.
 
-- **Local-first.** Your emotion history lives on your device. Signed out, the app makes zero contact with a server for your feelings.
+- **Local-first.** Your emotion history lives on your device. Signed out, nothing about you is stored on any server; to write a response, only the feeling you tapped and a 1-to-3 depth number are sent in the moment, and not kept.
 - **Accounts are optional.** Create one only if you want to back up and sync across devices. Sign-in is a simple emailed code — no password, no magic link.
 - **You own your data.** Clear your history any time, or delete your account entirely (which erases your data from the server).
 - **No tracking.** No third-party analytics SDKs.

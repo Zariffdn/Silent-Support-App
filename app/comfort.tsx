@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, Text, View, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, Pressable, View, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { theme } from '../src/theme';
+import { colors, easing, layout, motion, space, type, useReducedMotion } from '../src/theme';
 import { useBreathing } from '../src/features/comfort/useBreathing';
-import { BreathingCircle } from '../src/features/comfort/BreathingCircle';
+import { BreathLight } from '../src/features/comfort/BreathLight';
 import { GroundingLine } from '../src/features/comfort/GroundingLine';
 import {
   getComfortAudio,
@@ -14,10 +14,18 @@ import {
   type ComfortAudio,
 } from '../src/lib/preferences';
 import { startAmbient, stopAmbient } from '../src/features/comfort/audio';
+import { T } from '../src/ui/T';
+import { Action } from '../src/ui/Action';
+
+// How long the discoverability hint stays before it fades itself away.
+const HINT_HOLD_MS = 2600;
 
 export default function ComfortScreen() {
   const router = useRouter();
-  const { scale, phase } = useBreathing();
+  const reducedMotion = useReducedMotion();
+  const { height } = useWindowDimensions();
+  // A settle beat: the room arrives still, then begins to breathe.
+  const { scale, phase } = useBreathing(motion.settle);
 
   // "Stay in silence": one tap strips all words away, leaving only the breath.
   const [silent, setSilent] = useState(false);
@@ -43,65 +51,159 @@ export default function ComfortScreen() {
   );
 
   // Gentle Haptics: a single soft pulse at the start of inhale and exhale (never
-  // on hold, never continuous). If the device has no haptics, this no-ops
-  // silently — the experience just falls back to Silent.
+  // on hold, never continuous, never before the breath has begun). If the
+  // device has no haptics, this no-ops silently.
+  const prevPhaseRef = useRef(phase.key);
   useEffect(() => {
-    if (comfortAudio !== 'haptics') return;
+    const changed = prevPhaseRef.current !== phase.key;
+    prevPhaseRef.current = phase.key;
+    if (!changed || comfortAudio !== 'haptics') return;
     if (phase.key === 'inhale' || phase.key === 'exhale') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
     }
   }, [phase.key, comfortAudio]);
 
-  // Gently crossfade the phase cue whenever the phase changes.
-  const cue = useRef(new Animated.Value(1)).current;
+  // Screen readers hear each phase as it begins, on both platforms.
+  const screenReaderRef = useRef(false);
   useEffect(() => {
-    cue.setValue(0.3);
-    Animated.timing(cue, { toValue: 1, duration: 900, useNativeDriver: true }).start();
-  }, [phase.key, cue]);
+    AccessibilityInfo.isScreenReaderEnabled()
+      .then((on) => {
+        screenReaderRef.current = on;
+      })
+      .catch(() => {});
+  }, []);
 
-  // A soft hint that fades away after a couple of seconds. It reappears briefly
-  // each time silence is toggled, so the gesture stays discoverable without
-  // ever cluttering the space.
-  const hint = useRef(new Animated.Value(1)).current;
+  // Phase cue: hidden until the first breath begins, then the word fades out,
+  // changes, and fades back in — never a blink. A 200ms lag behind the breath
+  // is imperceptible against 4–6s phases.
+  const [cueLabel, setCueLabel] = useState(phase.label);
+  const cue = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    hint.setValue(1);
+    const t = setTimeout(() => {
+      Animated.timing(cue, {
+        toValue: 1,
+        duration: motion.arrive,
+        easing: easing.out,
+        useNativeDriver: true,
+      }).start();
+    }, motion.settle);
+    return () => clearTimeout(t);
+  }, [cue]);
+  useEffect(() => {
+    if (phase.label === cueLabel) return;
+    if (screenReaderRef.current) AccessibilityInfo.announceForAccessibility(phase.label);
+    Animated.timing(cue, {
+      toValue: 0,
+      duration: motion.touch,
+      easing: easing.out,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      setCueLabel(phase.label);
+      Animated.timing(cue, {
+        toValue: 1,
+        duration: motion.arrive,
+        easing: easing.out,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [phase.label, cueLabel, cue]);
+
+  // Silence dissolves the words rather than cutting them. The exit recedes but
+  // stays readable so there is always a way out.
+  const wordsOpacity = useRef(new Animated.Value(1)).current;
+  const exitOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(wordsOpacity, {
+        toValue: silent ? 0 : 1,
+        duration: motion.settle,
+        easing: easing.out,
+        useNativeDriver: true,
+      }),
+      Animated.timing(exitOpacity, {
+        toValue: silent ? 0.75 : 1,
+        duration: motion.settle,
+        easing: easing.out,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [silent, wordsOpacity, exitOpacity]);
+
+  // A soft hint that arrives, holds, and fades away — only while the words are
+  // showing. Entering silence is silent; any tap brings the words back.
+  const hint = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (silent) {
+      Animated.timing(hint, { toValue: 0, duration: motion.leave, easing: easing.out, useNativeDriver: true }).start();
+      return;
+    }
+    hint.setValue(0);
     const anim = Animated.sequence([
-      Animated.delay(2600),
-      Animated.timing(hint, { toValue: 0, duration: 1200, useNativeDriver: true }),
+      Animated.timing(hint, { toValue: 1, duration: motion.arrive, easing: easing.out, useNativeDriver: true }),
+      Animated.delay(HINT_HOLD_MS),
+      Animated.timing(hint, { toValue: 0, duration: motion.settle, easing: easing.out, useNativeDriver: true }),
     ]);
     anim.start();
     return () => anim.stop();
   }, [silent, hint]);
 
+  const leave = () => router.dismissTo('/');
+  const cueOpacity = Animated.multiply(wordsOpacity, cue);
+
   return (
     <SafeAreaView style={styles.safe}>
-      <Pressable
-        style={styles.body}
-        onPress={() => setSilent((s) => !s)}
-        accessibilityLabel={silent ? 'Show guidance' : 'Stay in silence'}
+      <BreathLight scale={scale} dim={silent} reducedMotion={reducedMotion} />
+
+      {/* Two quiet words on the shared edge: the way to the sound, the way out. */}
+      <View style={styles.top}>
+        <Animated.View
+          style={{ opacity: wordsOpacity }}
+          pointerEvents={silent ? 'none' : 'auto'}
+          accessibilityElementsHidden={silent}
+          importantForAccessibility={silent ? 'no-hide-descendants' : 'auto'}
+        >
+          <Action label="Sound" onPress={() => router.push('/settings')} accessibilityLabel="Sound. Opens settings" />
+        </Animated.View>
+        <Animated.View style={{ opacity: exitOpacity }}>
+          <Action label="Done" onPress={leave} accessibilityLabel="Done. Leaves the breathing space" style={styles.done} />
+        </Animated.View>
+      </View>
+
+      {/* The room: a tap anywhere toggles silence; the words sit above the
+          touch layer so screen readers can reach them. */}
+      <View style={styles.middle}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => setSilent((s) => !s)}
+          accessibilityRole="button"
+          accessibilityLabel={silent ? 'Bring the words back' : 'Stay in silence'}
+        />
+        <View style={styles.centre} pointerEvents="none">
+          <Animated.View style={[styles.words, { opacity: cueOpacity }]}>
+            <T role="field" center>
+              {cueLabel}
+            </T>
+          </Animated.View>
+
+          {/* The breath lives here: empty space at the centre of the room. */}
+          <View style={{ height: height * 0.34 }} />
+
+          <Animated.View style={[styles.words, styles.grounding, { opacity: wordsOpacity }]}>
+            <GroundingLine />
+          </Animated.View>
+        </View>
+      </View>
+
+      <Animated.View
+        style={[styles.hintWrap, { opacity: hint }]}
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
       >
-        {/* Phase cue: fades out in silence but keeps its space, so the circle stays put. */}
-        <Animated.Text style={[styles.cue, { opacity: silent ? 0 : cue }]}>{phase.label}</Animated.Text>
-
-        <BreathingCircle scale={scale} dim={silent} />
-
-        {/* Grounding line: the container always holds its space; only the line fades away. */}
-        <View style={styles.grounding}>{!silent && <GroundingLine />}</View>
-      </Pressable>
-
-      {/* Always-available, barely-there exit. Fades further in silence but stays tappable. */}
-      <Pressable
-        style={[styles.done, silent && styles.doneSilent]}
-        onPress={() => router.replace('/')}
-        accessibilityLabel="Leave comfort mode"
-        hitSlop={16}
-      >
-        <Text style={styles.doneText}>Done</Text>
-      </Pressable>
-
-      {/* Self-fading discoverability hint. pointerEvents none so taps still toggle silence. */}
-      <Animated.View style={[styles.hintWrap, { opacity: hint }]} pointerEvents="none">
-        <Text style={styles.hint}>{silent ? 'Tap to return' : 'Tap anywhere for silence'}</Text>
+        <T role="whisper" tone="ink3" center>
+          Tap anywhere for silence
+        </T>
       </Animated.View>
     </SafeAreaView>
   );
@@ -110,50 +212,39 @@ export default function ComfortScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: theme.colors.comfortBase,
+    backgroundColor: colors.canvas,
   },
-  body: {
+  top: {
+    width: '100%',
+    maxWidth: layout.column,
+    alignSelf: 'center',
+    paddingHorizontal: layout.edge,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  done: {
+    marginLeft: 0,
+    marginRight: -space.m,
+  },
+  middle: {
+    flex: 1,
+  },
+  centre: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 56,
   },
-  cue: {
-    color: theme.colors.inkSecondary,
-    fontSize: theme.typography.size.ui,
-    fontFamily: theme.typography.family.serif,
-    letterSpacing: 1,
+  words: {
+    alignItems: 'center',
+    paddingHorizontal: layout.edge,
   },
   grounding: {
-    minHeight: 24,
-    paddingHorizontal: 40,
-  },
-  done: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-  },
-  doneSilent: {
-    opacity: 0.25,
-  },
-  doneText: {
-    color: theme.colors.inkTertiary,
-    fontSize: theme.typography.size.caption,
-    fontFamily: theme.typography.family.sans,
+    minHeight: type.body.lineHeight,
   },
   hintWrap: {
-    position: 'absolute',
-    bottom: 36,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  hint: {
-    color: theme.colors.inkTertiary,
-    fontSize: theme.typography.size.caption,
-    fontFamily: theme.typography.family.sans,
-    letterSpacing: 0.5,
+    paddingHorizontal: layout.edge,
+    paddingBottom: space.xl,
+    minHeight: type.whisper.lineHeight + space.xl,
   },
 });

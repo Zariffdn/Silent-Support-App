@@ -1,134 +1,111 @@
-import { Linking, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Linking, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { theme } from '../src/theme';
+import { space } from '../src/theme';
 import {
+  CRISIS_REGION,
   CRISIS_RESOURCES,
   INTERNATIONAL_DIRECTORY,
   type CrisisResource,
 } from '../src/features/safety/resources';
+import { Screen } from '../src/ui/Screen';
+import { T } from '../src/ui/T';
+import { Action } from '../src/ui/Action';
+import { Hairline } from '../src/ui/Hairline';
 
-export default function HelpScreen() {
-  const router = useRouter();
-
-  const open = (resource: CrisisResource) => {
-    const { action } = resource;
-    const url = action.type === 'call' ? `tel:${action.number}` : action.url;
-    Linking.openURL(url).catch(() => {
-      // If the device can't open it (e.g. no dialer), fail quietly.
-    });
-  };
-
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={16} accessibilityLabel="Back">
-          <Text style={styles.back}>‹ Back</Text>
-        </Pressable>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>You’re not alone</Text>
-        <Text style={styles.intro}>
-          If you’re carrying something heavy, or thinking about hurting yourself, you don’t have to
-          face it alone. These lines are free, confidential, and there for you, any time.
-        </Text>
-
-        {CRISIS_RESOURCES.map((r) => (
-          <Card key={r.name} resource={r} onPress={() => open(r)} />
-        ))}
-
-        <Text style={styles.sectionGap}>Anywhere in the world</Text>
-        <Card resource={INTERNATIONAL_DIRECTORY} onPress={() => open(INTERNATIONAL_DIRECTORY)} />
-
-        <Text style={styles.footer}>
-          Silent Support is here for comfort, not medical care. In an emergency, please contact your
-          local emergency services.
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
-  );
+function open(resource: CrisisResource) {
+  const { action } = resource;
+  const url = action.type === 'call' ? `tel:${action.number}` : action.url;
+  Linking.openURL(url).catch(() => {
+    // If the device can't open it (e.g. no dialer), fail quietly — the number
+    // itself is on screen and selectable.
+  });
 }
 
-function Card({ resource, onPress }: { resource: CrisisResource; onPress: () => void }) {
+/** One line of help: who it is, when it's there, and a way to reach it. */
+function Resource({ resource, primary }: { resource: CrisisResource; primary?: boolean }) {
+  const verb = resource.action.type === 'call' ? 'Call' : 'Open';
+  const target = resource.actionLabel.replace(/^(Call|Open) /, '');
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardName}>{resource.name}</Text>
-      <Text style={styles.cardDesc}>{resource.description}</Text>
-      <Pressable onPress={onPress} style={styles.action} hitSlop={8} accessibilityRole="button">
-        <Text style={styles.actionText}>{resource.actionLabel}</Text>
-      </Pressable>
+    <View style={styles.resource}>
+      <T role="heading" accessibilityRole="header">
+        {resource.name}
+      </T>
+      <T role="body" tone="ink2" style={styles.desc}>
+        {resource.description}
+      </T>
+      <View style={styles.reach}>
+        <Action
+          label={verb}
+          kind={primary ? 'primary' : 'secondary'}
+          onPress={() => open(resource)}
+          accessibilityLabel={resource.actionLabel}
+        />
+        <T role="label" tone="ink" selectable>
+          {target}
+        </T>
+      </View>
     </View>
   );
 }
 
+export default function HelpScreen() {
+  const router = useRouter();
+  const [emergency, ...lines] = CRISIS_RESOURCES;
+
+  return (
+    <Screen back title="You’re not alone">
+      <T role="body" tone="ink2">
+        If you’re carrying something heavy, or thinking about hurting yourself, you don’t have to
+        face it alone. These lines are free, confidential, and there for you, any time.
+      </T>
+      <Action
+        label="Breathe with me for a moment"
+        onPress={() => router.push('/comfort')}
+        accessibilityLabel="Breathe with me for a moment. Opens the breathing space"
+        style={styles.breathe}
+      />
+
+      <Hairline />
+      <T role="label" tone="ink2">
+        In {CRISIS_REGION}
+      </T>
+      {emergency ? <Resource resource={emergency} primary /> : null}
+      {lines.map((r) => (
+        <Resource key={r.name} resource={r} />
+      ))}
+
+      <Hairline />
+      <T role="label" tone="ink2">
+        Anywhere in the world
+      </T>
+      <Resource resource={INTERNATIONAL_DIRECTORY} />
+
+      <T role="whisper" tone="ink3" style={styles.footer}>
+        Silent Support is here for comfort, not medical care. In an emergency, please contact your
+        local emergency services.
+      </T>
+    </Screen>
+  );
+}
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.colors.canvas },
-  topBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
-  back: {
-    color: theme.colors.inkSecondary,
-    fontSize: theme.typography.size.ui,
-    fontFamily: theme.typography.family.sans,
+  breathe: {
+    marginTop: space.l,
   },
-  scroll: { paddingHorizontal: 20, paddingBottom: 48 },
-  title: {
-    color: theme.colors.inkPrimary,
-    fontSize: theme.typography.size.greeting,
-    fontFamily: theme.typography.family.serif,
-    marginTop: 12,
+  resource: {
+    marginTop: space.m,
   },
-  intro: {
-    color: theme.colors.inkSecondary,
-    fontSize: theme.typography.size.body,
-    lineHeight: theme.typography.lineHeight.body,
-    fontFamily: theme.typography.family.sans,
-    marginTop: 12,
-    marginBottom: 24,
+  desc: {
+    marginTop: space.hair,
   },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-    gap: 8,
-  },
-  cardName: {
-    color: theme.colors.inkPrimary,
-    fontSize: theme.typography.size.ui,
-    fontFamily: theme.typography.family.sans,
-  },
-  cardDesc: {
-    color: theme.colors.inkTertiary,
-    fontSize: theme.typography.size.body,
-    fontFamily: theme.typography.family.sans,
-  },
-  action: {
-    marginTop: 6,
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.colors.accentWhisper,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
-  actionText: {
-    color: theme.colors.accentWhisper,
-    fontSize: theme.typography.size.body,
-    fontFamily: theme.typography.family.sans,
-  },
-  sectionGap: {
-    color: theme.colors.inkTertiary,
-    fontSize: theme.typography.size.caption,
-    fontFamily: theme.typography.family.sans,
-    letterSpacing: 0.5,
-    marginTop: 10,
-    marginBottom: 10,
+  // The Call word carries a -16 left margin; an 8pt gap puts the number 24pt after it.
+  reach: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    marginTop: space.hair,
   },
   footer: {
-    color: theme.colors.inkTertiary,
-    fontSize: theme.typography.size.caption,
-    lineHeight: 20,
-    fontFamily: theme.typography.family.sans,
-    marginTop: 20,
+    marginTop: space.xl,
   },
 });

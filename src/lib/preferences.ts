@@ -8,6 +8,7 @@ export type ComfortAudio = 'silent' | 'haptics' | 'ocean' | 'rain' | 'forest' | 
 const AUDIO_KEY = 'silentsupport.pref.comfortAudio';
 const VOLUME_KEY = 'silentsupport.pref.comfortVolume';
 const LEGACY_GUIDANCE_KEY = 'silentsupport.pref.breathingGuidance'; // Day 9 (silent | haptics)
+const WELCOME_SEEN_KEY = 'silentsupport.welcomeSeen.v1';
 
 const VALID: ComfortAudio[] = ['silent', 'haptics', 'ocean', 'rain', 'forest', 'brown'];
 const SOUND_CHOICES: ComfortAudio[] = ['ocean', 'rain', 'forest', 'brown'];
@@ -56,5 +57,24 @@ export async function setComfortVolume(value: number): Promise<void> {
     await AsyncStorage.setItem(VOLUME_KEY, String(clamped));
   } catch {
     // best-effort
+  }
+}
+
+// First-launch trust line. A single boolean, read asynchronously so it NEVER
+// gates the first paint of the home screen. Not synced, not personal data.
+export async function getWelcomeSeen(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(WELCOME_SEEN_KEY)) === '1';
+  } catch {
+    // On error, treat as seen so we never risk nagging on every launch.
+    return true;
+  }
+}
+
+export async function setWelcomeSeen(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(WELCOME_SEEN_KEY, '1');
+  } catch {
+    // best-effort; worst case the line shows once more next launch
   }
 }

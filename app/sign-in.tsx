@@ -1,21 +1,18 @@
 import { useEffect, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-  StyleSheet,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { AccessibilityInfo, TextInput, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../src/lib/supabase';
-import { theme } from '../src/theme';
+import { colors, fonts, maxScale, space, type } from '../src/theme';
+import { Screen } from '../src/ui/Screen';
+import { T } from '../src/ui/T';
+import { Action } from '../src/ui/Action';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+/**
+ * Optional, and it should feel that way: one field, one action, one honest
+ * line about the email. Passwordless — a code arrives by email.
+ */
 export default function SignInScreen() {
   const router = useRouter();
   const [phase, setPhase] = useState<'email' | 'code'>('email');
@@ -32,8 +29,13 @@ export default function SignInScreen() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
+  // Errors are spoken as well as shown.
+  useEffect(() => {
+    if (error) AccessibilityInfo.announceForAccessibility(error);
+  }, [error]);
+
   const sendCode = async () => {
-    if (cooldown > 0) return;
+    if (cooldown > 0 || busy) return;
     const e = email.trim().toLowerCase();
     if (!EMAIL_RE.test(e)) {
       setError('That doesn’t look like an email yet.');
@@ -73,159 +75,141 @@ export default function SignInScreen() {
       return;
     }
     // The session listener handles syncing/restoring; just return.
-    router.back();
+    if (router.canGoBack()) router.back();
+    else router.dismissTo('/');
+  };
+
+  const changeEmail = () => {
+    setPhase('email');
+    setCode('');
+    setError(null);
+    // A new address starts fresh: no leftover cooldown for a code that was
+    // never sent to it.
+    setCooldown(0);
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={16} accessibilityLabel="Back">
-          <Text style={styles.back}>‹ Back</Text>
-        </Pressable>
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.body}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-        >
-        {phase === 'email' ? (
-          <>
-            <Text style={styles.title}>Save your check-ins</Text>
-            <Text style={styles.intro}>
-              Add your email and we’ll send a code to sign in. No password needed. Use the same
-              email each time, so your check-ins stay together.
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor={theme.colors.inkTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              editable={!busy}
-            />
-            <Pressable
-              style={[styles.button, (busy || cooldown > 0) && styles.buttonBusy]}
+    <Screen back keyboard title={phase === 'email' ? 'Keep a copy' : 'Check your email'}>
+      {phase === 'email' ? (
+        <>
+          <T role="body" tone="ink2">
+            Sign in with your email and we’ll send you a code. No password. Your check-ins stay
+            yours.
+          </T>
+          <TextInput
+            style={styles.input}
+            maxFontSizeMultiplier={maxScale.body}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor={colors.ink3}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            returnKeyType="send"
+            onSubmitEditing={sendCode}
+            editable={!busy}
+            accessibilityLabel="Email address"
+          />
+          {error ? (
+            <T role="body" tone="alert" style={styles.error}>
+              {error}
+            </T>
+          ) : null}
+          <Action
+            label={busy ? 'Sending…' : cooldown > 0 ? `Send again in ${cooldown}s` : 'Send code'}
+            kind="primary"
+            onPress={sendCode}
+            disabled={cooldown > 0}
+            busy={busy}
+            style={styles.action}
+          />
+          <T role="whisper" tone="ink3" style={styles.note}>
+            Your email is used only to send the code and keep your check-ins together.
+          </T>
+        </>
+      ) : (
+        <>
+          <T role="body" tone="ink2">
+            Enter the code we sent to {email.trim().toLowerCase()}. If it hasn’t arrived, check
+            your spam folder.
+          </T>
+          <TextInput
+            style={[styles.input, styles.codeInput]}
+            maxFontSizeMultiplier={maxScale.field}
+            value={code}
+            onChangeText={setCode}
+            placeholder="········"
+            placeholderTextColor={colors.ink3}
+            keyboardType="number-pad"
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
+            returnKeyType="done"
+            onSubmitEditing={verify}
+            autoFocus
+            maxLength={8}
+            editable={!busy}
+            accessibilityLabel="Sign-in code"
+          />
+          {error ? (
+            <T role="body" tone="alert" style={styles.error}>
+              {error}
+            </T>
+          ) : null}
+          <Action
+            label={busy ? 'Signing in…' : 'Continue'}
+            kind="primary"
+            onPress={verify}
+            busy={busy}
+            style={styles.action}
+          />
+          <View style={styles.secondary}>
+            <Action
+              label={cooldown > 0 ? `Send again in ${cooldown}s` : 'Send again'}
               onPress={sendCode}
               disabled={busy || cooldown > 0}
-            >
-              <Text style={styles.buttonText}>
-                {cooldown > 0 ? `Send again in ${cooldown}s` : busy ? 'Sending…' : 'Send code'}
-              </Text>
-            </Pressable>
-            <Text style={styles.note}>
-              Your email is only used to sign you in. Your check-ins stay private to you.
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.title}>Check your email</Text>
-            <Text style={styles.intro}>
-              Enter the code we just sent to {email.trim().toLowerCase()}.
-            </Text>
-            <TextInput
-              style={[styles.input, styles.codeInput]}
-              value={code}
-              onChangeText={setCode}
-              placeholder="········"
-              placeholderTextColor={theme.colors.inkTertiary}
-              keyboardType="number-pad"
-              autoFocus
-              maxLength={8}
-              editable={!busy}
             />
-            <Pressable style={[styles.button, busy && styles.buttonBusy]} onPress={verify} disabled={busy}>
-              <Text style={styles.buttonText}>{busy ? 'Signing in…' : 'Continue'}</Text>
-            </Pressable>
-            <Pressable onPress={() => { setPhase('email'); setCode(''); setError(null); }} hitSlop={10}>
-              <Text style={styles.secondary}>Use a different email</Text>
-            </Pressable>
-          </>
-        )}
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            <Action label="Use a different email" onPress={changeEmail} />
+          </View>
+        </>
+      )}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.colors.canvas },
-  topBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
-  back: {
-    color: theme.colors.inkSecondary,
-    fontSize: theme.typography.size.ui,
-    fontFamily: theme.typography.family.sans,
-  },
-  flex: { flex: 1 },
-  body: { flexGrow: 1, paddingHorizontal: 24, justifyContent: 'center', gap: 16 },
-  title: {
-    color: theme.colors.inkPrimary,
-    fontSize: theme.typography.size.greeting,
-    fontFamily: theme.typography.family.serif,
-  },
-  intro: {
-    color: theme.colors.inkSecondary,
-    fontSize: theme.typography.size.body,
-    lineHeight: theme.typography.lineHeight.body,
-    fontFamily: theme.typography.family.sans,
-  },
+  // The one container in the app: a line to write on, not a box. No lineHeight
+  // (iOS would sit the text low) and no horizontal padding (Android would
+  // indent it off the edge).
   input: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    color: theme.colors.inkPrimary,
-    fontSize: theme.typography.size.ui,
-    fontFamily: theme.typography.family.sans,
-    marginTop: 8,
+    fontFamily: fonts.regular,
+    fontSize: type.body.fontSize,
+    color: colors.ink,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.edge,
+    paddingVertical: space.s,
+    paddingHorizontal: 0,
+    marginTop: space.l,
   },
   codeInput: {
-    textAlign: 'center',
-    letterSpacing: 8,
-    fontSize: theme.typography.size.greeting,
-  },
-  button: {
-    backgroundColor: theme.colors.surfaceHigh,
-    borderRadius: 999,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  buttonBusy: { opacity: 0.6 },
-  buttonText: {
-    color: theme.colors.inkPrimary,
-    fontSize: theme.typography.size.ui,
-    fontFamily: theme.typography.family.sans,
-  },
-  secondary: {
-    color: theme.colors.accentWhisper,
-    fontSize: theme.typography.size.body,
-    fontFamily: theme.typography.family.sans,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  note: {
-    color: theme.colors.inkTertiary,
-    fontSize: theme.typography.size.caption,
-    lineHeight: 19,
-    fontFamily: theme.typography.family.sans,
-    marginTop: 4,
+    fontSize: type.field.fontSize,
+    letterSpacing: 4,
   },
   error: {
-    color: theme.colors.accentAlert,
-    fontSize: theme.typography.size.body,
-    fontFamily: theme.typography.family.sans,
-    textAlign: 'center',
+    marginTop: space.s,
+  },
+  action: {
+    marginTop: space.l,
+  },
+  note: {
+    marginTop: space.l,
+  },
+  secondary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.xs,
+    marginTop: space.xs,
   },
 });

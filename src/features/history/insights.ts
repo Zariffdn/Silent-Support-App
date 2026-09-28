@@ -19,6 +19,20 @@ function bucketOfHour(h: number): Bucket {
   return 'night';
 }
 
+export type DayPart = Bucket;
+
+/** The part of the day a check-in happened, as a word: how a memory is kept, not a log. */
+export function dayPart(iso: string): string {
+  return DAY_PART_LABEL[bucketOfHour(new Date(iso).getHours())];
+}
+
+const DAY_PART_LABEL: Record<Bucket, string> = {
+  morning: 'morning',
+  afternoon: 'afternoon',
+  evening: 'evening',
+  night: 'late night',
+};
+
 const BUCKET_PHRASE: Record<Bucket, string> = {
   morning: 'Mornings',
   afternoon: 'Afternoons',
@@ -45,12 +59,15 @@ export function buildInsights(logs: LocalLog[], nowMs: number): string[] {
   if (logs.length < 3) return ['This space will fill in gently as you check in.'];
 
   const recent = recentLogs(logs, nowMs);
-  const sample = recent.length >= 3 ? recent : logs;
+  // A light week falls back to the whole record — and says so, rather than
+  // calling two-month-old feelings "lately".
+  const lately = recent.length >= 3;
+  const sample = lately ? recent : logs;
   const out: string[] = [];
 
   // Low-energy stretch.
   const lowCount = sample.filter((l) => LOW_ENERGY.includes(l.emotion)).length;
-  if (lowCount >= 3 && lowCount / sample.length >= 0.4) {
+  if (lately && lowCount >= 3 && lowCount / sample.length >= 0.4) {
     out.push('You’ve had more low-energy days lately. Be gentle with yourself.');
   }
 
@@ -60,7 +77,7 @@ export function buildInsights(logs: LocalLog[], nowMs: number): string[] {
     if (HEAVY.includes(l.emotion)) buckets[bucketOfHour(new Date(l.createdAt).getHours())] += 1;
   }
   const heavyTotal = buckets.morning + buckets.afternoon + buckets.evening + buckets.night;
-  if (heavyTotal >= 3) {
+  if (lately && heavyTotal >= 3) {
     const top = (Object.entries(buckets) as [Bucket, number][]).sort((a, b) => b[1] - a[1])[0];
     if (top[1] / heavyTotal >= 0.5) {
       out.push(`${BUCKET_PHRASE[top[0]]} seem a little heavier for you lately.`);
@@ -71,12 +88,7 @@ export function buildInsights(logs: LocalLog[], nowMs: number): string[] {
   const counts = countByEmotion(sample);
   if (counts[0] && counts[0].count >= 2) {
     const label = getEmotion(counts[0].emotion)?.label ?? counts[0].emotion;
-    out.push(`Lately, “${label}” has come up the most.`);
-  }
-
-  // Presence — gentle acknowledgement of showing up.
-  if (recent.length >= 1) {
-    out.push(`You’ve checked in ${recent.length} ${recent.length === 1 ? 'time' : 'times'} this week.`);
+    out.push(`${lately ? 'Lately' : 'Over time'}, “${label}” has come up the most.`);
   }
 
   return out.slice(0, 2);

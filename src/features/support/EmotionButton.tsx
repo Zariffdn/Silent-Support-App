@@ -1,63 +1,90 @@
-import { Pressable, Text, View, StyleSheet } from 'react-native';
-import { theme } from '../../theme';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet } from 'react-native';
+import { easing, light, motion } from '../../theme';
+import { Pool } from '../../ui/Pool';
+import { T } from '../../ui/T';
 import type { Emotion } from '../../emotions/catalog';
+
+export type EmotionCellState = 'rest' | 'chosen' | 'dimmed';
 
 type Props = {
   emotion: Emotion;
   onPress: (emotion: Emotion) => void;
-  disabled?: boolean;
+  /** rest = touchable; chosen = the one just tapped; dimmed = the others as the
+   *  room dissolves into the words. */
+  state: EmotionCellState;
 };
 
-/** A large, soft, calm tile. Big touch target, gentle press feedback. */
-export function EmotionButton({ emotion, onPress, disabled }: Props) {
+export const CELL_HEIGHT = 92;
+export const POOL = 200;
+
+/**
+ * One feeling in the field: a word resting in a pool of light. No box, no
+ * icon. Light gathers under a finger, blooms when chosen, and the other seven
+ * words sink — the feeling is received, not submitted. The word sits on the
+ * cell's left edge (the screen edge for the left column, the midline for the
+ * right) and the light is centred on the word itself.
+ */
+export function EmotionButton({ emotion, onPress, state }: Props) {
+  const glow = useRef(new Animated.Value(light.rest)).current;
+  const word = useRef(new Animated.Value(1)).current;
+  const [wordWidth, setWordWidth] = useState(0);
+
+  useEffect(() => {
+    const target = state === 'chosen' ? light.chosen : state === 'dimmed' ? 0 : light.rest;
+    Animated.timing(glow, {
+      toValue: target,
+      duration: motion.leave,
+      easing: easing.out,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(word, {
+      toValue: state === 'dimmed' ? 0.45 : 1,
+      duration: motion.leave,
+      easing: easing.out,
+      useNativeDriver: true,
+    }).start();
+  }, [state, glow, word]);
+
+  const touch = (value: number) => {
+    if (state !== 'rest') return;
+    Animated.timing(glow, {
+      toValue: value,
+      duration: motion.touch,
+      easing: easing.out,
+      useNativeDriver: true,
+    }).start();
+  };
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={emotion.label}
-      disabled={disabled}
+      accessibilityState={{ disabled: state !== 'rest', selected: state === 'chosen' }}
+      disabled={state !== 'rest'}
       onPress={() => onPress(emotion)}
-      style={({ pressed }) => [
-        styles.tile,
-        pressed && styles.tilePressed,
-        disabled && styles.tileDisabled,
-      ]}
+      onPressIn={() => touch(light.press)}
+      onPressOut={() => touch(light.rest)}
+      style={styles.cell}
     >
-      <View style={styles.inner}>
-        <Text style={styles.emoji}>{emotion.emoji}</Text>
-        <Text style={styles.label}>{emotion.label}</Text>
-      </View>
+      {wordWidth > 0 ? (
+        <Pool tint="moon" size={POOL} opacity={glow} style={{ left: wordWidth / 2, top: '50%' }} />
+      ) : null}
+      <Animated.View
+        style={{ opacity: word }}
+        onLayout={(e) => setWordWidth(e.nativeEvent.layout.width)}
+      >
+        <T role="field">{emotion.label}</T>
+      </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  tile: {
+  cell: {
     flex: 1,
-    minHeight: 132,
-    borderRadius: 24,
-    backgroundColor: theme.colors.surface,
-    paddingVertical: 22,
-    paddingHorizontal: 16,
+    minHeight: CELL_HEIGHT,
     justifyContent: 'center',
-  },
-  tilePressed: {
-    backgroundColor: theme.colors.surfaceHigh,
-    opacity: 0.92,
-  },
-  tileDisabled: {
-    opacity: 0.4,
-  },
-  inner: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  emoji: {
-    fontSize: 38,
-  },
-  label: {
-    color: theme.colors.inkSecondary,
-    fontSize: theme.typography.size.ui,
-    fontFamily: theme.typography.family.sans,
-    textAlign: 'center',
+    alignItems: 'flex-start',
   },
 });

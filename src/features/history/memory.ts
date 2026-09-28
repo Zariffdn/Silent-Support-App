@@ -31,9 +31,9 @@ export type MemorySignal = { kind: MemoryKind; phrase: string };
 const PHRASES: Record<MemoryKind, string> = {
   eased: 'This feeling has been showing up less than it used to.',
   returning: 'It’s been a little while since this feeling came up.',
-  consistent: 'You’ve been checking in consistently lately.',
-  varied: 'Your emotions have looked more varied recently.',
-  balanced: 'A lot of different feelings have had space lately.',
+  consistent: 'You’ve kept coming back to yourself this week.',
+  varied: 'Several different feelings have passed through recently.',
+  balanced: 'No one feeling has taken over lately.',
 };
 
 const dayKey = (iso: string) => new Date(iso).toDateString();
