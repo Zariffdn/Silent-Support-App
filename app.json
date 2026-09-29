@@ -51,11 +51,21 @@
         "backgroundColor": "#0E0F1A",
         "foregroundImage": "./assets/android_adaptive_foreground.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "backgroundColor": "#0E0F1A"
+    "backgroundColor": "#0E0F1A",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ac638ebf-0373-414f-a4b8-cb89512bae60"
+      }
+    },
+    "owner": "zaryph"
   }
 }
