@@ -1,0 +1,42 @@
+name: Mirror to Zariffdn
+
+# Every push here is copied to github.com/Zariffdn/<same repo name>: all
+# branches and tags, force-pushed and pruned, so the copy matches exactly.
+# It pushes with ZARIFFDN_DEPLOY_KEY, an SSH deploy key with write access to
+# that one Zariffdn repository. The job is skipped on the Zariffdn copy.
+
+on:
+  push:
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-to-zariffdn
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    if: github.repository_owner == 'ZriffDnny'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Push every branch and tag to Zariffdn
+        env:
+          DEPLOY_KEY: ${{ secrets.ZARIFFDN_DEPLOY_KEY }}
+          TOKEN: ${{ github.token }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_KEY" ]; then echo "::error::ZARIFFDN_DEPLOY_KEY secret is not set"; exit 1; fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/zariffdn && chmod 600 ~/.ssh/zariffdn
+          # GitHub's published SSH host key, pinned rather than fetched.
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/zariffdn -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+          git clone --quiet --bare "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" src.git
+          git -C src.git push --force --prune "git@github.com:Zariffdn/${REPO}.git" \
+            'refs/heads/*:refs/heads/*' 'refs/tags/*:refs/tags/*'
+          rm -f ~/.ssh/zariffdn
