@@ -7,13 +7,17 @@
     "orientation": "portrait",
     "icon": "./assets/ios_icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0E0F1A"
-    },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0E0F1A",
+          "imageWidth": 200
+        }
+      ],
       [
         "expo-audio",
         {

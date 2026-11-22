@@ -36,7 +36,14 @@ function BackHome() {
       return;
     }
     // Cold start from the link: the router can't navigate until it's ready.
-    return navigation.addListener('ready', goHome);
+    // Since SDK 58 the container has no 'ready' event; its first state event
+    // marks readiness. Unsubscribe before navigating so this runs once.
+    const unsubscribe = navigation.addListener('state', () => {
+      if (!navigation.isReady()) return;
+      unsubscribe();
+      goHome();
+    });
+    return unsubscribe;
   }, [navigation, router]);
   return null;
 }
